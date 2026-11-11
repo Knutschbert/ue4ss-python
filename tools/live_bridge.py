@@ -244,6 +244,15 @@ def _heartbeat():
     os.replace(temporary, HEARTBEAT)
 
 
+def _level_name():
+    """The full name of the current world, or None when there is none (or it cannot be asked)."""
+    try:
+        world = ue4ss.find_first_of("World")
+        return world.get_full_name() if world is not None else None
+    except Exception:
+        return None
+
+
 def _travel(path):
     from ue4ss.engine.Engine import GameplayStatics
     world = ue4ss.find_first_of("World")
@@ -287,7 +296,7 @@ def _run(record):
                 _jobs.clear()
                 result = {"generation": _generation, "reset": True, "cleanup": reset_outcomes}
             elif operation == "status":
-                result = {"alive": True, "game_thread": True, "generation": _generation,
+                result = {"alive": True, "game_thread": True, "generation": _generation, "level": _level_name(),
                           "jobs": [_job_view(job) for job in _jobs.values()]}
             elif operation == "job_start":
                 job_id = "job-" + request_id

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ue4ss-live": {
+      "command": "${UE4SS_PYTHON:-python}",
+      "args": ["tools/live_mcp.py"]
+    }
+  }
+}

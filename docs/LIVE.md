@@ -57,12 +57,80 @@ answering), `wait_until` (block until an expression becomes true, re-evaluated a
 registered under a group name), `travel` (open a level), `reload` and `stop`.
 [`tools/live_client.py`](../tools/live_client.py) is the client library the command-line tool uses.
 
-## For AI assistants: the MCP adapter
+## For AI assistants: the MCP server
 
-[`tools/live_mcp.py`](../tools/live_mcp.py) offers the same operations as MCP tools over stdio (`live_status`,
-`live_execute`, `live_job_start`, `live_wait_until`, ...). Register it in an MCP client as the command
-`python tools/live_mcp.py` with this repository as working directory. It never starts a game: without a running bridge
-every tool reports that.
+[`tools/live_mcp.py`](../tools/live_mcp.py) offers the bridge to an AI assistant as MCP tools over stdio.
+
+> [!IMPORTANT]
+> **You start the game; the assistant works with the game that is running.** The server never starts, stops or installs
+> into a game: games differ too much in how they are launched (Steam, Epic, extra DLLs). Install the bridge once with
+> `python tools/live.py install`, start the game, then let the assistant work. Without a running bridge every tool
+> answers at once with what you have to do.
+
+### Registration
+
+The repository carries a project-level [`.mcp.json`](../.mcp.json), which clients that read that file (Claude Code, for
+example) pick up when opened on this folder:
+
+```json
+{
+  "mcpServers": {
+    "ue4ss-live": {
+      "command": "${UE4SS_PYTHON:-python}",
+      "args": ["tools/live_mcp.py"]
+    }
+  }
+}
+```
+
+- The command is `python`; set the environment variable `UE4SS_PYTHON` when your interpreter has another name (`python3`
+  on Linux and WSL, `py` on some Windows setups). A client that does not expand `${...}` needs the plain command name.
+- For other clients, register the same command with **this repository as the working directory**, in that client's own
+  configuration.
+- The session folder is `dist/PythonScripting/live`; add `"env": {"PYUE_LIVE_DIR": "<folder>"}` for another one.
+- **Client under WSL, game on Windows:** this works when the repository is on a Windows drive, because both then see the
+  same session folder (`/mnt/p/...` and `P:\...`). Run `python tools\live.py install` with either Python; it writes the
+  folder for the game as a Windows path.
+
+### Tools
+
+| Tool | Does |
+|---|---|
+| `live_status` | Whether the bridge is alive; if so the current level, the session generation and the jobs; if not, why and what to do. Call it first. |
+| `live_execute` | Runs a Python block on the game thread in the persistent session; returns output, the variable `result` and any traceback. |
+| `live_reset` | Runs the registered cleanups and forgets the session's variables. |
+| `live_job_start` | Queues a block for a later engine tick and returns a job id at once. |
+| `live_job_status` | State, output, result and error of a job. |
+| `live_cleanup` | Runs the cleanup callbacks registered under a group name (all groups when none is given). |
+| `live_wait_until` | Waits until an expression becomes true, re-evaluated every tick without blocking the game; without an expression waits the whole timeout. |
+| `live_wait_ready` | Waits until a world exists and, unless `require_pawn` is false, a player controller with a pawn. On timeout says what is missing. |
+| `live_sleep` | Waits a fixed number of seconds without blocking the game. |
+| `live_travel` | Opens another level inside the running game (the engine's `OpenLevel`). Level paths are specific to the game. |
+| `live_reload` | Runs the mod's `main.py` again; the bridge restarts with an empty session. |
+| `live_stop` | Ends the bridge. The game keeps running. |
+
+Limits of one request: 128 KiB of code, 64 KiB of output, 600 seconds.
+
+### Working rules for an assistant
+
+The same text is in [`AGENTS.md`](../AGENTS.md), which agent tools read by themselves.
+
+1. **Start with `live_status`.** If the bridge is not alive, pass its `what_to_do` on to the user and stop; do not retry
+   in a loop and do not try to start the game.
+2. **Everything runs on the game thread.** A `live_execute` block freezes the game while it runs: no `time.sleep`, no
+   long loops. To wait, use `live_wait_until`, `live_wait_ready` or `live_sleep`; for work that spans frames, start a
+   job and poll `live_job_status`.
+3. **The session is persistent.** Variables, functions and object references stay between calls; `ue4ss` is imported.
+   Assign to `result` to get a value back. `live_reset` starts over.
+4. **One request at a time.** A request sent while another runs is rejected.
+5. **Objects can die.** A stored object may be destroyed by the game (level change, respawn); look it up again or check
+   `obj.is_valid()`. Using a dead one raises `InvalidObjectError`, it does not crash.
+6. **Explore before you act.** `obj.get_class().get_property_names()`, `get_function_names()`,
+   `find_function(name).get_params()`, `ue4ss.find_all_of("Class")`; see [USAGE.md](../USAGE.md#5-find-out-what-your-game-has).
+7. **Clean up what you make.** Keep spawned actors and hook ids in session variables and remove them when done, or
+   register one with `register_cleanup(group, name, callable)` (available in the session) and call `live_cleanup`. Hooks and key bindings made in the session stay until removed
+   or until the script reloads.
+8. **After a level change** (`live_travel`, or the user loading a level) call `live_wait_ready` before touching the world.
 
 ## Safety
 

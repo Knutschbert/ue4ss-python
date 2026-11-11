@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- MCP server for the live bridge: `.mcp.json`, clear answers without a running game, `live_wait_ready`; `AGENTS.md` for agents.
 - `docs/ENGINE_VERSIONS.md`: which engine versions are supported and how to add one.
 - `tools/live.py`: run Python in the running game from a terminal (file-based bridge, with an MCP adapter).
 - `tools/make_release.py --build --with-ue4ss`: one command to a release zip that includes the matching UE4SS.
