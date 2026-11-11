@@ -12,13 +12,17 @@ python tools/live.py repl
 ```
 
 ```
->>> pawn = ue4ss.find_first_of("PlayerController").Pawn
->>> pawn.K2_GetActorLocation()
-result: <Struct Vector X=120.0 Y=-40.0 Z=92.0>
->>> for name in pawn.get_class().get_function_names()[:3]:
-...     print(name)
+>>> actors = ue4ss.find_all_of("Actor")
+>>> len(actors)
+result: 212
+>>> for actor in actors[:2]:
+...     print(actor.get_full_name())
 ...
+StaticMeshActor /Game/Maps/Example.Example:PersistentLevel.Floor
+PlayerStart /Game/Maps/Example.Example:PersistentLevel.PlayerStart_0
 ```
+
+(The values are an illustration.)
 
 ## Commands
 
