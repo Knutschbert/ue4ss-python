@@ -8,6 +8,7 @@ The session folder is PYUE_LIVE_DIR, default dist/PythonScripting/live.
 from __future__ import annotations
 
 import json
+import argparse
 import sys
 from typing import Any
 
@@ -193,8 +194,11 @@ def handle(message: dict[str, Any], client: LiveClient) -> dict[str, Any] | None
     return {"jsonrpc": "2.0", "id": request_id, "result": response}
 
 
-def main() -> int:
-    client = client_from_environment()
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--session-dir", help="the live session folder (default: PYUE_LIVE_DIR or the base mod's dist folder)")
+    args = parser.parse_args(argv)
+    client = client_from_environment(args.session_dir)
     for line in sys.stdin:
         if not line.strip():
             continue

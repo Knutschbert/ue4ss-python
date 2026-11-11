@@ -84,6 +84,6 @@ class LiveClient:
         raise LiveClientError(f"no response for {request['id']} before timeout")
 
 
-def client_from_environment() -> LiveClient:
+def client_from_environment(session_dir: str | Path | None = None) -> LiveClient:
     import os
-    return LiveClient(os.environ.get("PYUE_LIVE_DIR", str(Path(__file__).resolve().parents[1] / "dist" / "PythonScripting" / "live")))
+    return LiveClient(session_dir or os.environ.get("PYUE_LIVE_DIR", str(Path(__file__).resolve().parents[1] / "dist" / "PythonScripting" / "live")))

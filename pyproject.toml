@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ue4ss-python"
+version = "0.1"
+description = "Off-game mock and editor typings for ue4ss-python"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+[tool.setuptools]
+package-dir = {"" = "python/mock"}
+packages = ["ue4ss"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+ue4ss = ["py.typed", "*.pyi", "engine/*.pyi"]

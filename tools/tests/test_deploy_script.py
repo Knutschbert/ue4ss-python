@@ -53,6 +53,14 @@ class DeployScriptTest(unittest.TestCase):
         written = deploy_script.deploy(installed, "again", self.root)
         self.assertEqual(written["packager"].read_text(encoding="utf-8"), "x = 1\n")
 
+    def test_a_game_package_can_supply_its_own_scripts_folder(self):
+        scripts = Path(self.tmp.name) / "game-package" / "python_scripts"
+        mod = Path(self.tmp.name) / "base" / "dist" / "PythonScripting"
+        (mod / "python_scripts").mkdir(parents=True)
+        written = deploy_script.deploy(self.source, scripts_dir=scripts, mod_dir=mod)
+        self.assertEqual(written["packager"], scripts / "main.py")
+        self.assertEqual(written["installed"], mod / "python_scripts" / "main.py")
+
     def test_names_are_made_safe(self):
         self.assertEqual(deploy_script.safe_name("a/b\\c: d?"), "a_b_c_d")
         self.assertEqual(deploy_script.safe_name("***"), "script")

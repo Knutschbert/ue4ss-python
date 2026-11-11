@@ -1,4 +1,5 @@
 import json
+import io
 import os
 import sys
 import time
@@ -8,12 +9,23 @@ from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from live_client import LiveClient, LiveClientError  # noqa: E402
+from live_client import LiveClient, LiveClientError, client_from_environment  # noqa: E402
 import live_mcp  # noqa: E402
 from live_mcp import handle  # noqa: E402
 
 
 class LiveClientMcpTest(unittest.TestCase):
+    def test_client_accepts_an_explicit_session_folder(self):
+        self.assertEqual(client_from_environment("/tmp/foreign-session").root, Path("/tmp/foreign-session"))
+
+    def test_mcp_entry_point_accepts_an_explicit_session_folder(self):
+        saved = sys.stdin
+        try:
+            sys.stdin = io.StringIO("")
+            self.assertEqual(live_mcp.main(["--session-dir", "/tmp/foreign-session"]), 0)
+        finally:
+            sys.stdin = saved
+
     def test_status_uses_heartbeat(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)

@@ -286,13 +286,13 @@ def install(*, build: bool = False, say: Callable[[str], None] = print) -> None:
 
 
 def run_all(entries: list, *, timeout: float = 150, windowed: bool = False, runner: Callable = run_example, say: Callable[[str], None] = print,
-            runs: Path = RUNS, results: Path = RESULTS) -> int:
+            runs: Path = RUNS, results: Path = RESULTS, root: Path = ROOT, examples: Path = EXAMPLES) -> int:
     """Run the scripts one after another; write per-script output and the result file. Returns the number that did not pass."""
     runs.mkdir(parents=True, exist_ok=True)
     report, failures, expected = [], 0, 0
     for number, entry in enumerate(entries, 1):
         say(f"[{number}/{len(entries)}] {entry['file']}")
-        result = runner(entry, timeout=timeout, windowed=windowed, echo=say)
+        result = runner(entry, root=root, examples=examples, timeout=timeout, windowed=windowed, echo=say)
         why = verdict(entry, result)
         (runs / (Path(entry["file"]).stem + ".txt")).write_text("\n".join(result.lines) + "\n", encoding="utf-8")
         known = entry.get("expected_failure", "")          # a known defect: failing is expected, passing means the entry is out of date
@@ -319,6 +319,8 @@ def run_all(entries: list, *, timeout: float = 150, windowed: bool = False, runn
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--examples-dir", type=Path, default=EXAMPLES, help="the folder holding example scripts (default: %(default)s)")
+    parser.add_argument("--manifest", type=Path, help="the example manifest (default: <examples-dir>/manifest.json)")
     sub = parser.add_subparsers(dest="command", required=True)
     install_parser = sub.add_parser("install", help="UE4SS, its settings and the mod into the staged test game")
     install_parser.add_argument("--build", action="store_true", help="build UE4SS, the proxy and the mod first")
@@ -339,11 +341,12 @@ def main(argv=None) -> int:
             return 0
         if package_mod.running_game([EXE_NAME]):
             raise TestGameError(f"{EXE_NAME} is already running; close it first")
-        entries = load_manifest()
+        examples = args.examples_dir
+        entries = load_manifest(args.manifest or examples / "manifest.json")
         chosen = selected(entries, [args.example] if args.command == "run" else [n for n in args.only.split(",") if n])
         if not chosen:
             raise TestGameError("no script selected")
-        return 1 if run_all(chosen, timeout=args.timeout, windowed=args.windowed) else 0
+        return 1 if run_all(chosen, timeout=args.timeout, windowed=args.windowed, examples=examples) else 0
     except (TestGameError, installer.InstallError) as error:
         print("testgame: " + str(error), file=sys.stderr)
         return 1

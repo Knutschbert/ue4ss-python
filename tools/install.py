@@ -89,12 +89,14 @@ class Installer:
     """The steps; `say` reports, `dry_run` only reports. link / build / package are injectable for tests."""
 
     def __init__(self, root: Path = ROOT, *, config: str = "Game__Shipping__Win64", ue4ss_root=None, dry_run: bool = False, say=print,
-                 link=make_junction, build=run_build, package=None, running=package_mod.running_game):
+                 link=make_junction, build=run_build, package=None, running=package_mod.running_game, scripts_dir=None, libraries=()):
         self.root, self.config, self.dry_run, self.say = Path(root), config, dry_run, say
         self.ue4ss_root = Path(ue4ss_root) if ue4ss_root else self.root.parent / "RE-UE4SS"
         self.explicit_ue4ss_root = ue4ss_root
         self.link, self.build, self.running = link, build, running
         self.package = package or self._package
+        self.scripts_dir = Path(scripts_dir) if scripts_dir is not None else self.root / "python" / "python_scripts"
+        self.libraries = tuple(Path(library) for library in libraries)
 
     # --- steps ---
     def check_not_running(self, game_exe: str) -> None:
@@ -109,12 +111,17 @@ class Installer:
 
     def _package(self) -> None:
         code = package_mod.main(["--main-dll", str(self.root / "build" / "src" / "main.dll"), "--runtime-dir", str(self.root / "third_party" / "python" / "runtime"),
-                                 "--scripts-dir", str(self.root / "python" / "python_scripts"), "--out-dir", str(self.root / "dist"), "--name", MOD_NAME])
+                                  "--scripts-dir", str(self.scripts_dir), "--out-dir", str(self.root / "dist"), "--name", MOD_NAME,
+                                  "--lib-dir", str(self.root / "python" / "lib"),
+                                  *[part for library in self.libraries for part in ("--library", str(library))]])
         if code:
             raise InstallError("packaging failed (see the output above)")
 
     def package_mod(self) -> None:
         self.say(f"package the mod into {self.root / 'dist' / MOD_NAME}")
+        self.say(f"scripts: {self.scripts_dir}")
+        for library in self.libraries:
+            self.say(f"library: {library}")
         if not self.dry_run:
             self.package()
 
@@ -204,20 +211,34 @@ def main(argv=None) -> int:
     parser.add_argument("--copy", action="store_true", help="copy the mod folder into the game instead of linking it")
     parser.add_argument("--config", default="Game__Shipping__Win64", help="build configuration (default: %(default)s)")
     parser.add_argument("--ue4ss-root", type=Path, help="the RE-UE4SS checkout (default: next to this repository)")
+    parser.add_argument("--scripts-dir", type=Path, help="the folder containing main.py and game scripts (relative to the current directory)")
+    parser.add_argument("--library", type=Path, action="append", default=None,
+                        help="a game Python package folder to ship next to main.py (repeatable; relative to the current directory)")
+    parser.add_argument("--local-config", type=Path, help="the local.config.json to read and update (relative to the current directory)")
     parser.add_argument("--dry-run", action="store_true", help="only print what would be done")
     args = parser.parse_args(argv)
     try:
+        config_path = (Path.cwd() / args.local_config).resolve() if args.local_config is not None and not args.local_config.is_absolute() else (args.local_config or local_config.CONFIG)
+        settings = local_config.load(config_path)
+        scripts_dir = ((Path.cwd() / args.scripts_dir).resolve() if args.scripts_dir is not None and not args.scripts_dir.is_absolute() else args.scripts_dir)
+        if scripts_dir is None:
+            configured = local_config.paths(settings, "scripts_dir", config_path)
+            scripts_dir = configured[0] if configured else None
+        libraries = args.library
+        if libraries is not None:
+            libraries = [(Path.cwd() / library).resolve() if not library.is_absolute() else library for library in libraries]
+        else:
+            libraries = local_config.paths(settings, "libraries", config_path, many=True)
         if args.game:
             game_dir, game_exe = find_game(args.game)
             if not args.dry_run:
-                settings = local_config.load()
                 settings.update({"game_dir": str(game_dir), "game_exe": game_exe})
-                local_config.save(settings)
+                local_config.save(settings, config_path)
         else:
-            game_dir, game_exe = local_config.game()
+            game_dir, game_exe = local_config.game(config_path)
         if os.name != "nt" and not args.dry_run:
             raise InstallError("run this with a Windows Python (the game, the build and the directory link are Windows things); --dry-run works anywhere")
-        Installer(config=args.config, ue4ss_root=args.ue4ss_root, dry_run=args.dry_run).run(game_dir, game_exe, skip_build=args.skip_build, copy=args.copy)
+        Installer(config=args.config, ue4ss_root=args.ue4ss_root, dry_run=args.dry_run, scripts_dir=scripts_dir, libraries=libraries).run(game_dir, game_exe, skip_build=args.skip_build, copy=args.copy)
     except (InstallError, local_config.ConfigError) as error:
         print("install: " + str(error), file=sys.stderr)
         return 1

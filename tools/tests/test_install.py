@@ -2,6 +2,8 @@ import os
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -169,6 +171,16 @@ class InstallTest(unittest.TestCase):
         with self.assertRaisesRegex(install.InstallError, "build first"):
             self.run_install(skip_build=True)
 
+    def test_external_script_and_library_sources_are_passed_to_the_packager(self):
+        scripts = self.root.parent / "game" / "python_scripts"
+        library = self.root.parent / "game" / "python" / "mygame"
+        installer = self.installer(scripts_dir=scripts, libraries=[library])
+        installer.package_mod()
+        self.assertEqual(installer.scripts_dir, scripts)
+        self.assertEqual(installer.libraries, (library,))
+        self.assertIn(f"scripts: {scripts}", self.said)
+        self.assertIn(f"library: {library}", self.said)
+
 
 class LocalConfigTest(unittest.TestCase):
     def test_round_trip_and_a_helpful_error_without_a_game(self):
@@ -182,6 +194,60 @@ class LocalConfigTest(unittest.TestCase):
             path.write_text("{ not json")
             with self.assertRaises(local_config.ConfigError):
                 local_config.load(path)
+
+    def test_game_package_paths_are_relative_to_the_config_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config = Path(folder) / "project" / "local.config.json"
+            local_config.save({"scripts_dir": "python/python_scripts", "libraries": ["python/mygame", "../shared"]}, config)
+            settings = local_config.load(config)
+            self.assertEqual(local_config.paths(settings, "scripts_dir", config), [config.parent / "python/python_scripts"])
+            self.assertEqual(local_config.paths(settings, "libraries", config, many=True),
+                             [config.parent / "python/mygame", config.parent.parent / "shared"])
+
+    def test_bad_game_package_path_settings_are_explained(self):
+        config = Path("local.config.json")
+        with self.assertRaisesRegex(local_config.ConfigError, "scripts_dir"):
+            local_config.paths({"scripts_dir": ["not", "one"]}, "scripts_dir", config)
+        with self.assertRaisesRegex(local_config.ConfigError, "libraries"):
+            local_config.paths({"libraries": "not a list"}, "libraries", config, many=True)
+
+
+class InstallCliTest(unittest.TestCase):
+    def test_dry_run_from_a_foreign_folder_lists_flag_sources(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            game = touch(root / "game" / "Binaries" / "Win64" / "Game-Win64-Shipping.exe")
+            scripts, library = root / "scripts", root / "library" / "mygame"
+            old_cwd = Path.cwd()
+            output = StringIO()
+            try:
+                os.chdir(root)
+                with redirect_stdout(output):
+                    self.assertEqual(install.main(["--game", str(game), "--dry-run", "--skip-build", "--scripts-dir", "scripts", "--library", "library/mygame"]), 0)
+            finally:
+                os.chdir(old_cwd)
+            self.assertIn(f"scripts: {scripts}", output.getvalue())
+            self.assertIn(f"library: {library}", output.getvalue())
+
+    def test_dry_run_uses_paths_from_a_foreign_local_config(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            game_dir = root / "game" / "Binaries" / "Win64"
+            touch(game_dir / "Game-Win64-Shipping.exe")
+            config = root / "package" / "local.config.json"
+            local_config.save({"game_dir": str(game_dir), "game_exe": "Game-Win64-Shipping.exe",
+                               "scripts_dir": "python/python_scripts", "libraries": ["python/mygame"]}, config)
+            (root / "elsewhere").mkdir()
+            old_cwd = Path.cwd()
+            output = StringIO()
+            try:
+                os.chdir(root / "elsewhere")
+                with redirect_stdout(output):
+                    self.assertEqual(install.main(["--dry-run", "--skip-build", "--local-config", "../package/local.config.json"]), 0)
+            finally:
+                os.chdir(old_cwd)
+            self.assertIn(f"scripts: {config.parent / 'python/python_scripts'}", output.getvalue())
+            self.assertIn(f"library: {config.parent / 'python/mygame'}", output.getvalue())
 
 
 if __name__ == "__main__":

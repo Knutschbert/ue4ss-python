@@ -209,6 +209,20 @@ class ManifestAndReportTest(unittest.TestCase):
             self.assertIn("remove that entry", by_file["fixed_main.py"]["why"])
             self.assertIn("1 of 3 passed, 1 failed as expected (known defects), 1 did not: fixed_main.py", said[-1])
 
+    def test_run_all_passes_a_foreign_examples_folder_to_the_runner(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            seen = {}
+
+            def runner(entry, **kwargs):
+                seen.update(kwargs)
+                return testgame.RunResult(entry["file"], started=True, finished=True, passed=1, lines=["PASS x", "done"])
+
+            examples = base / "game-package" / "examples"
+            testgame.run_all([{"file": "main.py", "marker": "done"}], runner=runner, runs=base / "runs", results=base / "results.json",
+                             root=base / "base", examples=examples)
+            self.assertEqual((seen["root"], seen["examples"]), (base / "base", examples))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -39,7 +39,7 @@ def safe_name(name: str) -> str:
     return cleaned or "script"
 
 
-def deploy(source: Path, name: str = "", root: Path = ROOT, now: time.struct_time = None) -> dict:
+def deploy(source: Path, name: str = "", root: Path = ROOT, now: time.struct_time = None, *, scripts_dir: Path = None, mod_dir: Path = None) -> dict:
     """Do the steps; returns the paths written ("kept" is None without a name). Raises SyntaxError / FileNotFoundError / OSError with a clear message."""
     source = Path(source)
     if not source.is_file():
@@ -47,12 +47,13 @@ def deploy(source: Path, name: str = "", root: Path = ROOT, now: time.struct_tim
     text = source.read_text(encoding="utf-8")
     compile(text, str(source), "exec")                               # SyntaxError names the file and the line
 
-    installed_dir = root / "dist" / "PythonScripting" / "python_scripts"
+    scripts_dir = Path(scripts_dir) if scripts_dir is not None else root / "python" / "python_scripts"
+    installed_dir = (Path(mod_dir) if mod_dir is not None else root / "dist" / "PythonScripting") / "python_scripts"
     if not installed_dir.parent.is_dir():
         raise FileNotFoundError(f"{installed_dir.parent} does not exist: package the mod first (tools/package_mod.py)")
     installed_dir.mkdir(exist_ok=True)
 
-    packager_copy = root / "python" / "python_scripts" / "main.py"
+    packager_copy = scripts_dir / "main.py"
     packager_copy.parent.mkdir(parents=True, exist_ok=True)
     keep = None
     if name.strip():
@@ -71,9 +72,11 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("script", type=Path)
     parser.add_argument("--name", default="", help="keep a copy under this name in scripts/user (default: no copy is kept)")
+    parser.add_argument("--scripts-dir", type=Path, help="the game package's python_scripts folder")
+    parser.add_argument("--mod-dir", type=Path, help="the packaged PythonScripting folder")
     args = parser.parse_args(argv)
     try:
-        written = deploy(args.script, args.name)
+        written = deploy(args.script, args.name, scripts_dir=args.scripts_dir, mod_dir=args.mod_dir)
     except SyntaxError as e:
         print(f"NOT deployed: syntax error in {e.filename}, line {e.lineno}: {e.msg}", file=sys.stderr)
         return 1
