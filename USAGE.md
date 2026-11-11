@@ -247,6 +247,7 @@ PYTHONPATH=python/mock python3 my_script.py
 | Test scripts covering every feature | [python/examples/](python/examples) |
 | Engine classes as Python types, generating typings | [docs/TYPED_API.md](docs/TYPED_API.md) |
 | Editor setup | [docs/VSCODE.md](docs/VSCODE.md) |
+| UE4SS Lua calls and their Python counterparts | [docs/LUA_CHEATSHEET.md](docs/LUA_CHEATSHEET.md) |
 | Hooking Blueprint functions, what works and what does not | [docs/BLUEPRINT_HOOKS.md](docs/BLUEPRINT_HOOKS.md) |
 | Threads | [docs/THREADING.md](docs/THREADING.md) |
 | Object lifetime and stale references | [docs/LIFETIME.md](docs/LIFETIME.md) |

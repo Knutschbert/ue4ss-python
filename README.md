@@ -26,6 +26,7 @@ ue4ss.execute_with_delay(2000, lambda: print("two seconds later, on the game thr
 |---|---|
 | Write your first script | [USAGE.md](USAGE.md), [example scripts](examples/README.md) |
 | Look up a function | [docs/API.md](docs/API.md) |
+| Come from UE4SS Lua | [docs/LUA_CHEATSHEET.md](docs/LUA_CHEATSHEET.md) |
 | Build the mod | [Build and install from source](#build-and-install-from-source), details in [docs/BUILDING.md](docs/BUILDING.md) |
 | Use another UE4SS version | [Using another UE4SS version](#using-another-ue4ss-version) |
 | Get editor completion | [docs/VSCODE.md](docs/VSCODE.md) |
@@ -44,7 +45,8 @@ ue4ss.execute_with_delay(2000, lambda: print("two seconds later, on the game thr
   running in your game first; keep the `UE4SS-settings.ini` that works.
 - **A UE4SS built from the same RE-UE4SS commit and build configuration as this mod.** The tested commit is
   [`97adba01`](https://github.com/UE4SS-RE/RE-UE4SS/commit/97adba01e9fcb3c208376581e54edb9ef466f233) with
-  `Game__Shipping__Win64`. The build steps below produce that UE4SS for you.
+  `Game__Shipping__Win64`. The build steps below produce that UE4SS for you. What else was tried:
+  [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
 - Microsoft Visual C++ Redistributable 2015-2022 (x64).
 
 > [!WARNING]
@@ -52,7 +54,8 @@ ue4ss.execute_with_delay(2000, lambda: print("two seconds later, on the game thr
 > `UE4SS.dll` and shares C++ class layouts with it, and those change between commits; a mismatch crashes the game at
 > start. Background: [docs/RELEASING.md](docs/RELEASING.md).
 
-Python itself is bundled with the mod; nothing has to be installed for it.
+Python itself is bundled with the mod; nothing has to be installed for it. Scripts are not sandboxed: run only scripts
+you trust ([SECURITY.md](SECURITY.md)).
 
 ## Build and install from source
 
@@ -193,10 +196,13 @@ Both run on every push ([workflow](.github/workflows/tests.yml)).
 | [docs/THREADING.md](docs/THREADING.md) | The game thread, Python threads, shutdown |
 | [docs/LIFETIME.md](docs/LIFETIME.md) | Object lifetime and stale references |
 | [docs/FAULTS.md](docs/FAULTS.md) | What happens when an engine call faults |
+| [docs/LUA_CHEATSHEET.md](docs/LUA_CHEATSHEET.md) | UE4SS Lua calls and their Python counterparts |
+| [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) | UE4SS commits, engine versions and games that were tried |
 | [docs/BUILDING.md](docs/BUILDING.md) | Building in detail |
 | [docs/RELEASING.md](docs/RELEASING.md) | Release zip and the binary compatibility checklist |
 | [docs/TESTGAME.md](docs/TESTGAME.md) | The test game project |
 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | Design overview |
+| [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md) | Contributing, changes, what scripts can do |
 
 The design records name Chivalry 2 in places: it is the game most measurements were taken in. The mod has no dependency
 on it.
