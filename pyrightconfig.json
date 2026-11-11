@@ -2,7 +2,7 @@
   "pythonVersion": "3.12",
   "stubPath": "stubs",
   "extraPaths": ["python/typings", "python/lib"],
-  "include": ["python/python_scripts", "python/examples", "python/typed_checks", "scripts"],
+  "include": ["python/python_scripts", "python/examples", "python/typed_checks", "examples", "scripts"],
   "typeCheckingMode": "basic",
   "reportMissingModuleSource": "none"
 }

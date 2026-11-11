@@ -24,7 +24,7 @@ ue4ss.execute_with_delay(2000, lambda: print("two seconds later, on the game thr
 
 | You want to | Read |
 |---|---|
-| Write your first script | [USAGE.md](USAGE.md) |
+| Write your first script | [USAGE.md](USAGE.md), [example scripts](examples/README.md) |
 | Look up a function | [docs/API.md](docs/API.md) |
 | Build the mod | [Build and install from source](#build-and-install-from-source), details in [docs/BUILDING.md](docs/BUILDING.md) |
 | Use another UE4SS version | [Using another UE4SS version](#using-another-ue4ss-version) |
@@ -174,7 +174,8 @@ Both run on every push ([workflow](.github/workflows/tests.yml)).
 | [`python/lib/ue4ss/`](python/lib/ue4ss) | Pure-Python modules shipped with the mod: typed layer, stub generator, bytecode reader, call tracer |
 | [`python/mock/`](python/mock) | The off-game `ue4ss` module |
 | [`python/typings/`](python/typings) | Shipped typings of the base `ue4ss` module ([docs/STUBS.md](docs/STUBS.md)) |
-| [`python/examples/`](python/examples) | In-game examples and tests (`manifest.json` lists them) |
+| [`examples/`](examples) | Short example scripts for users, one topic each |
+| [`python/examples/`](python/examples) | In-game test scripts and probes of the mod itself (`manifest.json` lists them) |
 | [`testgame/`](testgame) | A small UE 4.25 project used as a test target ([docs/TESTGAME.md](docs/TESTGAME.md)) |
 | [`tools/`](tools) | Build, package, release and typecheck scripts |
 | [`docs/`](docs) | Reference and design records, listed below |

@@ -1,6 +1,7 @@
 # Getting started
 
-This walks a new user from an installed mod to working scripts. The full reference is [docs/API.md](docs/API.md).
+This walks a new user from an installed mod to working scripts. The full reference is [docs/API.md](docs/API.md);
+ready-made scripts for each topic below are in [examples/](examples/README.md).
 
 **Contents**
 
@@ -242,7 +243,8 @@ PYTHONPATH=python/mock python3 my_script.py
 | Topic | File |
 |---|---|
 | Every function, type conversion and error | [docs/API.md](docs/API.md) |
-| Small working scripts for each feature | [python/examples/](python/examples) |
+| Example scripts to start from, one topic each | [examples/](examples/README.md) |
+| Test scripts covering every feature | [python/examples/](python/examples) |
 | Engine classes as Python types, generating typings | [docs/TYPED_API.md](docs/TYPED_API.md) |
 | Editor setup | [docs/VSCODE.md](docs/VSCODE.md) |
 | Hooking Blueprint functions, what works and what does not | [docs/BLUEPRINT_HOOKS.md](docs/BLUEPRINT_HOOKS.md) |
