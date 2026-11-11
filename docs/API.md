@@ -1,6 +1,6 @@
 # Python API (`import ue4ss`)
 
-Python scripts run inside the game (Unreal Engine 4.25, through UE4SS) and can find objects, read and write their
+Python scripts run inside the game (Unreal Engine 4.25, through UE4SS; other versions: `docs/ENGINE_VERSIONS.md`) and can find objects, read and write their
 properties, call engine functions and hook them. This is the user-facing reference; `IMPLEMENTATION.md` has the design
 and `docs/THREADING.md` / `docs/LIFETIME.md` the rules behind the safety behaviour described below.
 

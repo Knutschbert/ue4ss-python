@@ -70,7 +70,7 @@ The bridge executes whatever is written into its inbox folder. Nothing listens o
 folder is: anyone who can write files there can run code in the game with your rights. Keep the session folder on your
 own machine, and uninstall the bridge when you are done exploring ([SECURITY.md](../SECURITY.md)).
 
-## Not verified yet
+## Verified
 
-The bridge and the client are tested against a simulated engine tick. They come from a project where they were used
-daily with a real game; this repository's copy has not been run in a game yet.
+The bridge and the client are tested against a simulated engine tick, and the command-line tool was used against a real
+game (2026-11-11).

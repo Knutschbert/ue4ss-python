@@ -29,12 +29,14 @@ ue4ss.execute_with_delay(2000, lambda: print("two seconds later, on the game thr
 | Come from UE4SS Lua | [docs/LUA_CHEATSHEET.md](docs/LUA_CHEATSHEET.md) |
 | Build and install the mod | [Build and install from source](#build-and-install-from-source), details in [docs/BUILDING.md](docs/BUILDING.md) |
 | Use another UE4SS version | [Using another UE4SS version](#using-another-ue4ss-version) |
+| Use another engine version | [docs/ENGINE_VERSIONS.md](docs/ENGINE_VERSIONS.md) |
 | Get editor completion | [docs/VSCODE.md](docs/VSCODE.md) |
 | Try things in the running game from a terminal | [docs/LIVE.md](docs/LIVE.md) |
 
 ## Status
 
-- Windows x64 only. Tested with Unreal Engine 4.25 games; other engine versions are untested.
+- Windows x64 only. Unreal Engine 4.25 is supported; 4.26 and 4.27 are expected to work but are not verified; others are
+  unknown ([docs/ENGINE_VERSIONS.md](docs/ENGINE_VERSIONS.md)).
 - Version 0.1: the API can still change.
 - There is no prebuilt release yet: build it from source (below).
 
@@ -220,6 +222,7 @@ Both run on every push ([workflow](.github/workflows/tests.yml)). The in-game te
 | [docs/LIFETIME.md](docs/LIFETIME.md) | Object lifetime and stale references |
 | [docs/FAULTS.md](docs/FAULTS.md) | What happens when an engine call faults |
 | [docs/LUA_CHEATSHEET.md](docs/LUA_CHEATSHEET.md) | UE4SS Lua calls and their Python counterparts |
+| [docs/ENGINE_VERSIONS.md](docs/ENGINE_VERSIONS.md) | Which engine versions are supported, what that depends on, how to add one |
 | [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) | UE4SS commits, engine versions and games that were tried |
 | [docs/BUILDING.md](docs/BUILDING.md) | Building in detail |
 | [docs/RELEASING.md](docs/RELEASING.md) | Release zip and the binary compatibility checklist |
