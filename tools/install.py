@@ -71,9 +71,10 @@ def is_link(path: Path) -> bool:
 
 
 def make_junction(link: Path, target: Path) -> None:
-    done = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)], capture_output=True, text=True)
+    # bytes, not text: cmd answers in the console's code page (a localized Windows prints non-ASCII there)
+    done = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)], capture_output=True)
     if done.returncode != 0:
-        raise InstallError(f"mklink /J failed: {(done.stderr or done.stdout).strip()}")
+        raise InstallError(f"mklink /J failed: {(done.stderr or done.stdout).decode('ascii', errors='replace').strip()}")
 
 
 def run_build(target: str, config: str, ue4ss_root) -> None:
@@ -126,11 +127,22 @@ class Installer:
                     self.say(f"copy {name} to {game_dir} (not built yet)")
                     continue
                 raise InstallError(f"{source} does not exist; build first (run without --skip-build)")
-            if target.exists() and filecmp.cmp(source, target, shallow=False):
+            if target.exists() and not is_link(target) and filecmp.cmp(source, target, shallow=False):
                 self.say(f"{name} is up to date")
                 continue
             backup = game_dir / (name + BACKUP_SUFFIX)
-            if target.exists() and not backup.exists():
+            if is_link(target):
+                # The game's file is a link to a file somewhere else (another build). Copying "over" it would write through
+                # the link and overwrite that other file: move the link itself aside instead, or drop it when a backup exists.
+                if not backup.exists() and not is_link(backup):
+                    self.say(f"{name} in the game folder is a link: keep the link as {backup.name}")
+                    if not self.dry_run:
+                        os.replace(target, backup)
+                else:
+                    self.say(f"{name} in the game folder is a link: remove the link (what it points to is not touched)")
+                    if not self.dry_run:
+                        os.unlink(target)
+            elif target.exists() and not backup.exists() and not is_link(backup):
                 self.say(f"keep the game's current {name} as {backup.name}")
                 if not self.dry_run:
                     shutil.copy2(target, backup)

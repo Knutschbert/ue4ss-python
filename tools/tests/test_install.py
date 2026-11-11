@@ -97,6 +97,30 @@ class InstallTest(unittest.TestCase):
         self.assertEqual((self.win64 / "UE4SS.dll").read_text(), "newer ue4ss")
         self.assertEqual((self.win64 / "UE4SS.dll.before-ue4ss-python").read_text(), "stock ue4ss")   # the first backup stays
 
+    def test_a_game_file_that_is_a_link_is_never_written_through(self):
+        # the game's UE4SS.dll can be a link into another build folder: installing must not overwrite that other file
+        elsewhere = touch(self.root.parent / "other-build" / "UE4SS.dll", "the other project's build")
+        os.symlink(elsewhere, self.win64 / "UE4SS.dll")
+        self.run_install()
+        self.assertEqual(elsewhere.read_text(), "the other project's build")
+        self.assertFalse(install.is_link(self.win64 / "UE4SS.dll"))
+        self.assertEqual((self.win64 / "UE4SS.dll").read_text(), "new ue4ss")
+        self.assertTrue(install.is_link(self.win64 / "UE4SS.dll.before-ue4ss-python"))          # the link itself is kept
+        self.assertEqual((self.win64 / "UE4SS.dll.before-ue4ss-python").read_text(), "the other project's build")
+
+    def test_a_link_with_the_same_content_is_still_replaced_by_a_real_file(self):
+        os.symlink(self.root / "build" / "Game__Shipping__Win64" / "bin" / "UE4SS.dll", self.win64 / "UE4SS.dll")
+        self.run_install()
+        self.assertFalse(install.is_link(self.win64 / "UE4SS.dll"))
+        self.assertEqual((self.root / "build" / "Game__Shipping__Win64" / "bin" / "UE4SS.dll").read_text(), "new ue4ss")
+
+    def test_a_dry_run_does_not_move_a_link(self):
+        elsewhere = touch(self.root.parent / "other-build" / "UE4SS.dll", "other")
+        os.symlink(elsewhere, self.win64 / "UE4SS.dll")
+        self.installer(dry_run=True).run(self.win64, "MyGame-Win64-Shipping.exe")
+        self.assertTrue(install.is_link(self.win64 / "UE4SS.dll"))
+        self.assertTrue(any("is a link" in line for line in self.said))
+
     def test_a_second_install_changes_nothing_that_is_up_to_date(self):
         self.run_install()
         self.said.clear()

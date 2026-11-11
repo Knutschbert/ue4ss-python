@@ -46,7 +46,7 @@ def running_processes() -> set:
     """Lower-cased image names of every running process, via tasklist (tasklist.exe from WSL)."""
     for tool in ("tasklist.exe", "tasklist"):
         try:
-            out = subprocess.run([tool, "/FO", "CSV", "/NH"], capture_output=True, text=True, timeout=30, check=True).stdout
+            out = subprocess.run([tool, "/FO", "CSV", "/NH"], capture_output=True, text=True, errors="replace", timeout=30, check=True).stdout
         except (OSError, subprocess.SubprocessError):
             continue
         names = set()
