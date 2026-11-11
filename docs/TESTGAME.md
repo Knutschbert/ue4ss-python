@@ -25,8 +25,9 @@ be tested quickly and unattended against data we control, instead of only agains
 ```
 tools\package_testgame.ps1 -Engine <path to UE_4.25>     # build + cook + stage, ~1-2 minutes (first cook compiles shaders: ~9 minutes)
 ```
-The editor target (`PyTestGameEditor`, needed by the cook) builds with
-`Engine\Build\BatchFiles\Build.bat PyTestGameEditor Win64 Development -Project=<uproject> -2019`.
+The script first builds the project's editor module (`PyTestGameEditor`: the cook runs the editor, which must be able to
+load it), then builds, cooks and stages the game. Without that module the cook fails with
+`Unable to load module 'PyTestGame'`.
 
 ## Installing UE4SS and the mod into the staged game
 ```

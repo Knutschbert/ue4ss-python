@@ -1,6 +1,6 @@
 <#
 Builds, cooks and stages the PyTestGame test game (testgame/PyTestGame) as a Shipping Win64 build, using the UE 4.25
-installed engine. Run it from a drive-letter checkout (not a \\wsl.localhost path). About 1-2 minutes after the first run.
+installed engine. Run it from a drive-letter checkout (not a \\wsl.localhost path). About 1-2 minutes after the first run. Builds the project's editor module first (the cook needs it).
 
   powershell -ExecutionPolicy Bypass -File tools\package_testgame.ps1 -Engine C:\UE_4.25     (or set UE4_ENGINE)
 
@@ -28,9 +28,19 @@ if (Test-Path -LiteralPath $junction) {
     else { throw "$junction is a real folder, not a link; refusing to continue (UAT would delete it)" }
 }
 
+# The cook runs the editor, which needs this project's editor module (UE4Editor-PyTestGame.dll). UAT is told not to compile the
+# editor (an installed engine cannot), so the module is built here; later runs are incremental and take seconds.
+$here = Get-Location
 Set-Location C:\   # cmd.exe cannot start in a UNC directory
-$start = Get-Date
-& (Join-Path $Engine 'Engine\Build\BatchFiles\RunUAT.bat') BuildCookRun "-project=$project" -noP4 -platform=Win64 "-clientconfig=$Config" `
-    -build -cook -stage -nocompileeditor -unattended -utf8output -map=/Engine/Maps/Entry -prereqs
-if ($LASTEXITCODE -ne 0) { throw "UAT failed with exit code $LASTEXITCODE" }
-Write-Output ("packaged in {0:N1} min" -f ((Get-Date) - $start).TotalMinutes)
+try {
+    $start = Get-Date
+    & (Join-Path $Engine 'Engine\Build\BatchFiles\Build.bat') PyTestGameEditor Win64 Development "-Project=$project" -2019 -WaitMutex
+    if ($LASTEXITCODE -ne 0) { throw "building the editor module (PyTestGameEditor) failed with exit code $LASTEXITCODE" }
+    & (Join-Path $Engine 'Engine\Build\BatchFiles\RunUAT.bat') BuildCookRun "-project=$project" -noP4 -platform=Win64 "-clientconfig=$Config" `
+        -build -cook -stage -nocompileeditor -unattended -utf8output -map=/Engine/Maps/Entry -prereqs
+    if ($LASTEXITCODE -ne 0) { throw "UAT failed with exit code $LASTEXITCODE" }
+    Write-Output ("packaged in {0:N1} min" -f ((Get-Date) - $start).TotalMinutes)
+}
+finally {
+    Set-Location $here   # leave the caller's shell where it was
+}
