@@ -43,8 +43,10 @@ class InstallError(Exception):
 def find_game(path: Path) -> tuple:
     """(Binaries/Win64 folder, executable name) for a game folder, its Binaries/Win64, or the executable itself."""
     path = Path(path)
-    if path.is_file():
-        path = path.parent
+    if path.is_file():                              # the executable itself: no searching, also when the folder holds several
+        if path.suffix.lower() != ".exe":
+            raise InstallError(f"{path} is not an executable; pass the game's folder or its <Name>-Win64-Shipping.exe")
+        return path.parent, path.name
     if not path.is_dir():
         raise InstallError(f"{path} does not exist")
     found = sorted(path.glob("*-Win64-Shipping.exe"))
@@ -53,7 +55,7 @@ def find_game(path: Path) -> tuple:
     if not found:
         raise InstallError(f"no *-Win64-Shipping.exe in {path}, its Binaries\\Win64 or <subfolder>\\Binaries\\Win64; pass the folder that holds the game's executable")
     if len(found) > 1:
-        raise InstallError("more than one game executable found, pass the Binaries\\Win64 folder itself: " + ", ".join(str(f) for f in found))
+        raise InstallError("more than one game executable found, pass the one to use: " + ", ".join(str(f) for f in found))
     return found[0].parent, found[0].name
 
 

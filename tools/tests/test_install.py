@@ -64,6 +64,14 @@ class InstallTest(unittest.TestCase):
         with self.assertRaisesRegex(install.InstallError, "does not exist"):
             install.find_game(self.game / "nowhere")
 
+    def test_an_executable_given_by_name_is_used_even_when_the_folder_holds_several(self):
+        touch(self.win64 / "_MyGame-Win64-Shipping.exe")              # a renamed copy next to the real one
+        with self.assertRaisesRegex(install.InstallError, "pass the one to use"):
+            install.find_game(self.win64)
+        self.assertEqual(install.find_game(self.win64 / "MyGame-Win64-Shipping.exe"), (self.win64, "MyGame-Win64-Shipping.exe"))
+        with self.assertRaisesRegex(install.InstallError, "not an executable"):
+            install.find_game(touch(self.win64 / "notes.txt"))
+
     # --- the run ---
     def test_a_first_install_builds_packages_copies_ue4ss_and_links_the_mod(self):
         self.run_install()
