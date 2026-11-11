@@ -18,6 +18,32 @@
       "args": ["${file}", "--name", "${input:copyName}"],
       "console": "integratedTerminal",
       "justMyCode": true
+    },
+    {
+      "name": "Run current script without the game (off-game module)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "env": { "PYTHONPATH": "${workspaceFolder}/python/mock" },
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Debug current test file",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${file}", "-q"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Attach C++ debugger to the game",
+      "type": "cppvsdbg",
+      "request": "attach",
+      "processId": "${command:pickProcess}",
+      "symbolSearchPath": "${workspaceFolder}\\build\\src;${workspaceFolder}\\build\\Game__Shipping__Win64\\bin"
     }
   ],
   "inputs": [

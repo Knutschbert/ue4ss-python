@@ -47,6 +47,33 @@ See `docs/TYPED_API.md` for the options (Blueprint classes, one package only). `
 Set the environment variable `UE4SS_PY_GAME_PROCESS` (for example `MyGame-Win64-Shipping.exe`) and the deploy output also
 says whether the game is running.
 
+## Tasks and launch profiles
+**Terminal > Run Task...** lists the tasks of [`.vscode/tasks.json`](../.vscode/tasks.json):
+
+| Task | Does |
+|---|---|
+| Deploy current script to the game | Installs the open file as `main.py` (Ctrl+Shift+B) |
+| Install: choose the game (first time) | Asks for the game's folder, then builds, packages and installs ([`tools/install.py`](../tools/install.py)) |
+| Install: build and install into the game | The same for the remembered game |
+| Install: package and install without building | After changes to Python files only |
+| Build: mod / UE4SS.dll / proxy | One build target each ([`tools/build.ps1`](../tools/build.ps1)) |
+| Package the mod | `dist\PythonScripting` only |
+| Game: start | Starts the remembered game |
+| Game: follow the Python output | The `[Python]` lines of `UE4SS.log`, live |
+| Test: Python tests | `pytest` over `python/tests` and `tools` |
+| Test: C++ host tests of core/ (through WSL) | Needs WSL with clang++ |
+| Typings: regenerate the shipped base typings | After an API change ([STUBS.md](STUBS.md)) |
+
+The tasks call `python`; it must be on `PATH`. **Run and Debug** offers the profiles of
+[`.vscode/launch.json`](../.vscode/launch.json):
+
+| Profile | Does |
+|---|---|
+| Deploy current file to the game | As the task, from F5 |
+| Run current script without the game | Runs the open file against the off-game module with breakpoints. A script that needs game objects finds none there. |
+| Debug current test file | `pytest` on the open test with breakpoints |
+| Attach C++ debugger to the game | Pick the game process; uses the PDBs in `build\`. Needs the C/C++ extension. |
+
 ## What the typed code looks like
 ```python
 from ue4ss.engine import GameplayStatics, PlayerController, Vector, StaticMeshActor
