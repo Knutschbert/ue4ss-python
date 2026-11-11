@@ -57,6 +57,30 @@ An existing RE-UE4SS checkout with local changes is never switched to another co
 > "`deps/first/Unreal` is missing" at the end means the private submodule could not be cloned: the GitHub account git
 > uses has no access. Link it to Epic Games, or pass `-UEPseudoDir`, and run the script again.
 
+## The short way
+
+```powershell
+python tools\install.py --game "C:\Games\MyGame"    # first time; later: python tools\install.py
+```
+
+[`tools/install.py`](../tools/install.py) runs everything described in the rest of this file: the three builds, packaging,
+and installing into the game.
+
+| Option | Effect |
+|---|---|
+| `--game <path>` | The game's folder, its `Binaries\Win64`, or its executable. Remembered in `local.config.json` (git-ignored). |
+| `--skip-build` | Package and install what `build\` holds: enough after changing only Python files. |
+| `--copy` | Copy the mod folder into the game instead of linking it. Scripts already in the game's mod folder are kept. |
+| `--config <mode>`, `--ue4ss-root <path>` | Passed to `build.ps1`. |
+| `--dry-run` | Print the steps, change nothing. |
+
+What it will not do: replace a `UE4SS-settings.ini` or a `Mods` folder that exists, turn a real `Mods\PythonScripting`
+folder into a link (it stops and says so), or run while the game is running. The `UE4SS.dll` and `dwmapi.dll` it replaces
+are kept once as `<name>.before-ue4ss-python`.
+
+Two small companions read the same `local.config.json`: [`tools/start_game.py`](../tools/start_game.py) starts the game,
+[`tools/follow_log.py`](../tools/follow_log.py) shows the `[Python]` lines of its `UE4SS.log` live.
+
 ## Building
 
 [`tools/build.ps1`](../tools/build.ps1) runs from a normal PowerShell; it loads the MSVC environment itself. The first

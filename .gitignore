@@ -14,3 +14,6 @@ testgame/stubs_*/
 # Your own scripts
 python/python_scripts/
 scripts/user/
+
+# Which game this checkout installs into (tools/install.py)
+local.config.json

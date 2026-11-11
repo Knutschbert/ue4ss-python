@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `tools/install.py`: build, package and install into a game in one command; `tools/start_game.py`, `tools/follow_log.py`.
 - Packaging writes a starter `main.py` when there is none and keeps the scripts already in the installed folder.
 - Example scripts for users in `examples/`.
 - Typings of the base `ue4ss` module are shipped in `python/typings`.

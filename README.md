@@ -27,7 +27,7 @@ ue4ss.execute_with_delay(2000, lambda: print("two seconds later, on the game thr
 | Write your first script | [USAGE.md](USAGE.md), [example scripts](examples/README.md) |
 | Look up a function | [docs/API.md](docs/API.md) |
 | Come from UE4SS Lua | [docs/LUA_CHEATSHEET.md](docs/LUA_CHEATSHEET.md) |
-| Build the mod | [Build and install from source](#build-and-install-from-source), details in [docs/BUILDING.md](docs/BUILDING.md) |
+| Build and install the mod | [Build and install from source](#build-and-install-from-source), details in [docs/BUILDING.md](docs/BUILDING.md) |
 | Use another UE4SS version | [Using another UE4SS version](#using-another-ue4ss-version) |
 | Get editor completion | [docs/VSCODE.md](docs/VSCODE.md) |
 
@@ -84,7 +84,25 @@ The script checks the tools, downloads the pinned CPython 3.12.10 into `third_pa
 `deps/first/Unreal` is missing, your GitHub account has no access to `UEPseudo` yet; see
 [docs/BUILDING.md](docs/BUILDING.md#one-time-setup).
 
-### 3. Build UE4SS, its proxy and the mod
+### 3. Build and install, in one command
+
+```powershell
+python tools\install.py --game "C:\Games\MyGame"
+```
+
+[`tools/install.py`](tools/install.py) does steps 4 to 6 below: it builds UE4SS, its proxy and the mod, packages the mod,
+copies `UE4SS.dll` and `dwmapi.dll` next to the game's executable (the files it replaces are kept once as
+`<name>.before-ue4ss-python`; your `UE4SS-settings.ini` and `Mods` folder are left alone) and links `Mods\PythonScripting`
+to `dist\PythonScripting`. It refuses while the game runs. The game is remembered in the git-ignored `local.config.json`,
+so later it is just `python tools\install.py`, or `--skip-build` after changing only Python files. `--dry-run` prints what
+it would do.
+
+Then start the game (`python tools\start_game.py`) and watch the script output (`python tools\follow_log.py`). Continue
+with [USAGE.md](USAGE.md).
+
+The same by hand:
+
+### 4. Build UE4SS, its proxy and the mod
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Target UE4SS    # UE4SS.dll (the first build takes a while)
@@ -99,7 +117,7 @@ All three come from one build tree, so they match:
 | `UE4SS.dll`, `dwmapi.dll` | `build\Game__Shipping__Win64\bin\` |
 | `main.dll` | `build\src\` |
 
-### 4. Package the mod
+### 5. Package the mod
 
 ```powershell
 python tools\package_mod.py --main-dll build\src\main.dll --runtime-dir third_party\python\runtime --out-dir dist
@@ -109,11 +127,11 @@ This writes the complete mod folder `dist\PythonScripting`: the DLL, CPython, an
 script of your own that is a starter script, which prints one line and binds F5 to reload. Packaging again keeps the
 scripts you put into that folder.
 
-### 5. Install into the game
+### 6. Install into the game
 
 In `<Game>\Binaries\Win64` (the folder with the game's `...-Win64-Shipping.exe`):
 
-1. Replace `UE4SS.dll` and `dwmapi.dll` with the two files from step 3. Keep your `UE4SS-settings.ini` and `Mods` folder.
+1. Replace `UE4SS.dll` and `dwmapi.dll` with the two files from step 4. Keep your `UE4SS-settings.ini` and `Mods` folder.
 2. Copy `dist\PythonScripting` to `Mods\PythonScripting`. While developing, a link saves the copying:
    `mklink /J "<Game>\Binaries\Win64\Mods\PythonScripting" C:\dev\ue4ss-python\dist\PythonScripting`.
 3. The folder contains `enabled.txt`, which enables the mod. Alternatively add `PythonScripting : 1` to `Mods\mods.txt`.
@@ -134,7 +152,8 @@ powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Target proxy
 powershell -ExecutionPolicy Bypass -File tools\build.ps1
 ```
 
-Then package and install as in steps 4 and 5, **all three DLLs together**.
+Then package and install as in steps 5 and 6, **all three DLLs together** (`python tools\install.py --skip-build` does
+both).
 
 > [!NOTE]
 > Only commit `97adba01` is tested. The mod uses UE4SS's C++ mod interface and hooking internals, so a commit far from it

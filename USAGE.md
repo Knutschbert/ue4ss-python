@@ -39,7 +39,8 @@ import ue4ss
 print("hello from Python, generation", ue4ss.script_generation())
 ```
 
-Open `UE4SS.log` (next to the game's executable) and search for `[Python]`. You should see the line. If not:
+Open `UE4SS.log` (next to the game's executable) and search for `[Python]`. You should see the line. From a source
+checkout, `python tools\follow_log.py` shows these lines live. If not:
 
 | What you see | Cause | Fix |
 |---|---|---|
