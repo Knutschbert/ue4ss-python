@@ -30,6 +30,7 @@ ue4ss.execute_with_delay(2000, lambda: print("two seconds later, on the game thr
 | Build and install the mod | [Build and install from source](#build-and-install-from-source), details in [docs/BUILDING.md](docs/BUILDING.md) |
 | Use another UE4SS version | [Using another UE4SS version](#using-another-ue4ss-version) |
 | Get editor completion | [docs/VSCODE.md](docs/VSCODE.md) |
+| Try things in the running game from a terminal | [docs/LIVE.md](docs/LIVE.md) |
 
 ## Status
 
@@ -213,6 +214,7 @@ Both run on every push ([workflow](.github/workflows/tests.yml)). The in-game te
 | [docs/TYPED_API.md](docs/TYPED_API.md) | `ue4ss.engine`: engine classes as Python types, generating typings |
 | [docs/STUBS.md](docs/STUBS.md) | Which typings exist and where they come from |
 | [docs/VSCODE.md](docs/VSCODE.md) | Editor setup and the edit-deploy-try loop |
+| [docs/LIVE.md](docs/LIVE.md) | Running Python in the running game from a terminal or an AI assistant |
 | [docs/BLUEPRINT_HOOKS.md](docs/BLUEPRINT_HOOKS.md) | Hooking functions defined in Blueprints: what works |
 | [docs/THREADING.md](docs/THREADING.md) | The game thread, Python threads, shutdown |
 | [docs/LIFETIME.md](docs/LIFETIME.md) | Object lifetime and stale references |

@@ -211,6 +211,22 @@
       "problemMatcher": []
     },
     {
+      "label": "Live: Python prompt in the running game",
+      "detail": "Needs the bridge: python tools/live.py install, then start the game.",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "${workspaceFolder}/tools/live.py",
+        "repl"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Test: Python tests",
       "type": "process",
       "command": "python",

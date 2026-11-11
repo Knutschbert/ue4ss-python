@@ -11,6 +11,9 @@ is not meant to.
 
 The mod itself opens no network connection and reads no file other than its own folder (`dlls`, `python_scripts`).
 
+The optional live bridge ([docs/LIVE.md](docs/LIVE.md)) is a script you install on purpose. It runs any code written
+into its session folder; it does not listen on the network.
+
 ## Online games
 
 Changing a game's memory can violate the terms of a game or trip its anti-cheat. Use the mod where modding is allowed:

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `tools/live.py`: run Python in the running game from a terminal (file-based bridge, with an MCP adapter).
 - `tools/make_release.py --build --with-ue4ss`: one command to a release zip that includes the matching UE4SS.
 - `tools/testgame.py`: install into the test game and run the in-game test scripts automatically.
 - `tools/install.py`: build, package and install into a game in one command; `tools/start_game.py`, `tools/follow_log.py`.

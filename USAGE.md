@@ -139,6 +139,9 @@ the Blueprint classes loaded right now, and `ue4ss.find_objects(name="...")` fin
 signature; it is the most complete list, readable and searchable in any editor, and it also gives you completion
 ([section 9](#9-editor-completion-and-type-checking-optional)).
 
+**Ask the running game.** From a source checkout, `python tools/live.py repl` gives a Python prompt inside the running
+game, which is the quickest way to try the calls above ([docs/LIVE.md](docs/LIVE.md)).
+
 > [!TIP]
 > UE4SS brings its own inspection tools, which work next to this mod: the
 > [Live View](https://docs.ue4ss.com/dev/feature-overview/live-view.html) window to browse live objects and their
@@ -248,6 +251,7 @@ PYTHONPATH=python/mock python3 my_script.py
 | Test scripts covering every feature | [python/examples/](python/examples) |
 | Engine classes as Python types, generating typings | [docs/TYPED_API.md](docs/TYPED_API.md) |
 | Editor setup | [docs/VSCODE.md](docs/VSCODE.md) |
+| A Python prompt in the running game | [docs/LIVE.md](docs/LIVE.md) |
 | UE4SS Lua calls and their Python counterparts | [docs/LUA_CHEATSHEET.md](docs/LUA_CHEATSHEET.md) |
 | Hooking Blueprint functions, what works and what does not | [docs/BLUEPRINT_HOOKS.md](docs/BLUEPRINT_HOOKS.md) |
 | Threads | [docs/THREADING.md](docs/THREADING.md) |
