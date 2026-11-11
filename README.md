@@ -1,5 +1,7 @@
 # ue4ss-python
 
+[![tests](https://github.com/Knutschbert/ue4ss-python/actions/workflows/tests.yml/badge.svg)](https://github.com/Knutschbert/ue4ss-python/actions/workflows/tests.yml)
+
 Python scripting for Unreal Engine games through [UE4SS](https://github.com/UE4SS-RE/RE-UE4SS).
 
 It is a UE4SS C++ mod (`PythonScripting`) that embeds CPython 3.12 and gives scripts an `ue4ss` module: find objects,
@@ -78,7 +80,7 @@ you trust ([SECURITY.md](SECURITY.md)).
 ### 2. Get the sources
 
 ```powershell
-git clone <this repository> C:\dev\ue4ss-python
+git clone https://github.com/Knutschbert/ue4ss-python C:\dev\ue4ss-python
 cd C:\dev\ue4ss-python
 powershell -ExecutionPolicy Bypass -File tools\setup_windows.ps1
 ```
@@ -238,3 +240,6 @@ on it.
 ## Licence
 
 MIT, see [LICENSE](LICENSE). Third-party components: [THIRD_PARTY.md](THIRD_PARTY.md).
+
+This is an independent project. It is not affiliated with or endorsed by the UE4SS project or Epic Games; Unreal Engine is
+a trademark of Epic Games.
