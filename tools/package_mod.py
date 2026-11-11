@@ -27,6 +27,16 @@ KEEP_FOLDERS = ()
 # (ticket deo.6), so packaging refuses while it runs. Override with --game-process.
 DEFAULT_GAME_PROCESSES = ()
 
+# Written as python_scripts/main.py when there is no script yet.
+STARTER_MAIN = """# Starter script, written by tools/package_mod.py because there was no main.py. Replace it with your own.
+# It runs once on the game thread at the first engine tick; print() goes to UE4SS.log as "[Python] ...". See USAGE.md.
+import ue4ss
+from ue4ss import Key
+
+ue4ss.register_key_down(Key.F5, ue4ss.reload)      # F5 in the game runs this file again after you edited it
+print("PythonScripting is running, generation", ue4ss.script_generation())
+"""
+
 
 class GameRunningError(RuntimeError):
     """The game (or main.dll) is in use: the mod folder must not be replaced now."""
@@ -132,8 +142,13 @@ def assemble(main_dll: Path, runtime_dir: Path, scripts_dir: Path, out_dir: Path
 
         if scripts_dir.exists():
             _copytree_with_retry(copy, scripts_dir, staging / "python_scripts", attempts, retry_delay)
+        elif (mod_dir / "python_scripts").is_dir():     # no scripts folder in the repository: the scripts written into the installed folder are the user's, keep them
+            _copytree_with_retry(copy, mod_dir / "python_scripts", staging / "python_scripts", attempts, retry_delay)
         else:
             (staging / "python_scripts").mkdir()
+        starter = staging / "python_scripts" / "main.py"
+        if not starter.exists():                        # a first package: something that shows the mod works; never replaces a script
+            starter.write_text(STARTER_MAIN, encoding="utf-8")
         for lib_dir in lib_dirs:    # pure-Python modules of the mod itself (python/lib/ue4ss/engine.py -> dlls/ue4ss/engine.py)
             if lib_dir.is_dir():
                 for item in sorted(lib_dir.iterdir()):

@@ -102,7 +102,9 @@ All three come from one build tree, so they match:
 python tools\package_mod.py --main-dll build\src\main.dll --runtime-dir third_party\python\runtime --out-dir dist
 ```
 
-This writes the complete mod folder `dist\PythonScripting` (the DLL, CPython, an empty `python_scripts` folder).
+This writes the complete mod folder `dist\PythonScripting`: the DLL, CPython, and `python_scripts\main.py`. Without a
+script of your own that is a starter script, which prints one line and binds F5 to reload. Packaging again keeps the
+scripts you put into that folder.
 
 ### 5. Install into the game
 
@@ -112,8 +114,8 @@ In `<Game>\Binaries\Win64` (the folder with the game's `...-Win64-Shipping.exe`)
 2. Copy `dist\PythonScripting` to `Mods\PythonScripting`. While developing, a link saves the copying:
    `mklink /J "<Game>\Binaries\Win64\Mods\PythonScripting" C:\dev\ue4ss-python\dist\PythonScripting`.
 3. The folder contains `enabled.txt`, which enables the mod. Alternatively add `PythonScripting : 1` to `Mods\mods.txt`.
-4. Put a script at `Mods\PythonScripting\python_scripts\main.py` and start the game. Output and tracebacks go to
-   `UE4SS.log` with the prefix `[Python]`.
+4. Start the game. The starter script prints `[Python] PythonScripting is running` to `UE4SS.log`; replace
+   `Mods\PythonScripting\python_scripts\main.py` with your own script. Tracebacks go to the same log.
 
 Continue with [USAGE.md](USAGE.md): first script, checking the log, reloading, hooks, typings.
 

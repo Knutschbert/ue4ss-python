@@ -29,7 +29,8 @@ this:
         main.py         your script
 ```
 
-Put this in `python_scripts\main.py` and start the game:
+A mod packaged from source already has a starter `main.py` that does this. Otherwise put this in
+`python_scripts\main.py` and start the game:
 
 ```python
 import ue4ss

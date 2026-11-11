@@ -114,12 +114,30 @@ class AssembleTest(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             self.assemble()
 
-    def test_missing_scripts_dir_gives_empty_python_scripts(self):
+    def test_without_any_script_a_starter_main_is_written(self):
         import shutil
         shutil.rmtree(self.scripts)
         mod = self.assemble()
-        self.assertTrue((mod / "python_scripts").is_dir())
-        self.assertEqual(list((mod / "python_scripts").iterdir()), [])
+        self.assertEqual([p.name for p in (mod / "python_scripts").iterdir()], ["main.py"])
+        text = (mod / "python_scripts" / "main.py").read_text()
+        self.assertEqual(text, package_mod.STARTER_MAIN)
+        compile(text, "main.py", "exec")
+
+    def test_scripts_written_into_the_installed_folder_survive_repackaging(self):
+        import shutil
+        shutil.rmtree(self.scripts)
+        mod = self.assemble()
+        touch(mod / "python_scripts" / "main.py", "print('mine')")
+        touch(mod / "python_scripts" / "helpers" / "doors.py", "X = 1")
+        again = self.assemble()
+        self.assertEqual((again / "python_scripts" / "main.py").read_text(), "print('mine')")
+        self.assertEqual((again / "python_scripts" / "helpers" / "doors.py").read_text(), "X = 1")
+
+    def test_a_scripts_folder_without_main_gets_the_starter_and_keeps_its_files(self):
+        (self.scripts / "main.py").unlink()
+        mod = self.assemble()
+        self.assertEqual((mod / "python_scripts" / "main.py").read_text(), package_mod.STARTER_MAIN)
+        self.assertTrue((mod / "python_scripts" / "pkg" / "util.py").is_file())
 
     def test_runtime_without_python_dll_raises(self):
         (self.runtime / "python312.dll").unlink()

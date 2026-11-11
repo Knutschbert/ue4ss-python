@@ -127,13 +127,18 @@ python tools\package_mod.py --main-dll build\src\main.dll --runtime-dir third_pa
 ```
 PythonScripting\
     enabled.txt              enables the mod (or add "PythonScripting : 1" to Mods\mods.txt)
-    python_scripts\          main.py goes here; the folder python\python_scripts is copied if it exists
+    python_scripts\          main.py; see below where it comes from
     dlls\main.dll            this mod
     dlls\python312.dll       CPython, from third_party\python\runtime
     dlls\python312.zip       the standard library
     dlls\vcruntime140*.dll
     dlls\ue4ss\              the pure-Python modules from python\lib\ue4ss
 ```
+
+Where `python_scripts` comes from, in this order: the folder `python\python_scripts` of the repository if it exists (it is
+git-ignored, for your own scripts; [`tools/deploy_script.py`](../tools/deploy_script.py) writes there); otherwise the
+scripts already in `dist\PythonScripting\python_scripts`, which are kept; and when there is no `main.py` at all, a starter
+script that prints one line and binds F5 to reload.
 
 UE4SS calls `AddDllDirectory(<mod>\dlls)` before loading `main.dll`, so `python312.dll` next to it resolves. The layout
 follows the C++ mod guide of UE4SS (`docs/guides/creating-a-c++-mod.md` in RE-UE4SS). `--library <folder>` ships an
