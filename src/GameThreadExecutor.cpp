@@ -71,7 +71,7 @@ namespace pyue::game_thread_executor
         options.OwnerModName = STR("PythonScripting");
         options.HookName = STR("GameThreadExecutor");
 
-        // Debug switch (ft9.11): PYUE_EXECUTOR=processevent takes the ProcessEvent path even when the tick hook exists,
+        // Debug switch: PYUE_EXECUTOR=processevent takes the ProcessEvent path even when the tick hook exists,
         // to test the fallback.
         wchar_t forced[32] = {};
         const bool force_process_event = ::GetEnvironmentVariableW(L"PYUE_EXECUTOR", forced, 32) > 0 && std::wstring_view(forced) == L"processevent";

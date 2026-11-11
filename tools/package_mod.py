@@ -23,8 +23,8 @@ RUNTIME_SKIP = {"python312._pth", "python3.dll", "python.exe", "pythonw.exe", "p
 
 KEEP_FOLDERS = ()
 
-# The game this mod is developed against; replacing the mod's files under a running copy is a probable cause of a crash
-# (ticket deo.6), so packaging refuses while it runs. Override with --game-process.
+# Image names of games that must not be running: replacing the mod's files under a running game is a probable cause of a
+# crash, so packaging refuses while one runs. Empty by default; set with --game-process.
 DEFAULT_GAME_PROCESSES = ()
 
 # Written as python_scripts/main.py when there is no script yet.
@@ -129,7 +129,7 @@ def assemble(main_dll: Path, runtime_dir: Path, scripts_dir: Path, out_dir: Path
     try:
         dlls.mkdir(parents=True)
         _copy_with_retry(copy, main_dll, dlls / "main.dll", attempts, retry_delay)
-        pdb = main_dll.with_suffix(".pdb")   # gy7.4: the plugin's crash backtrace resolves
+        pdb = main_dll.with_suffix(".pdb")   # the plugin's crash backtrace resolves
         if pdb.exists():                     # our frames through this PDB (dbghelp searches the module's
             _copy_with_retry(copy, pdb, dlls / pdb.name, attempts, retry_delay)  # directory by default)
         for item in runtime_dir.iterdir():

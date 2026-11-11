@@ -2423,7 +2423,7 @@ class HookTest(unittest.TestCase):
         self.assertEqual(seen[-1], ("nothing", None))
 
     def test_blueprint_style_single_output_is_the_result(self):
-        # Blueprint functions return through an output pin: a plain out parameter, no return parameter (rqf.8)
+        # Blueprint functions return through an output pin: a plain out parameter, no return parameter
         def impl(block):
             block.IsReady = True
         ue4ss._mock_define_function("/Script/Engine.KismetMathLibrary", "BpIsReady", flags=0x2000, impl=impl, params=[("IsReady", "BoolProperty", True, False)])
@@ -2708,7 +2708,7 @@ class ParityTest(unittest.TestCase):
 
 
 class IdentifierAliasTest(unittest.TestCase):
-    """The name a generated stub declares for an engine name with spaces works on the object (st6.3)."""
+    """The name a generated stub declares for an engine name with spaces works on the object."""
 
     def setUp(self):
         ue4ss._mock_reset_objects()

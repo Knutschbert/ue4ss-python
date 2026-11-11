@@ -1,4 +1,4 @@
-# What are the Blueprint-made enums and structs that properties refer to, and how can they be found? (st6.2). No pass/fail.
+# What are the Blueprint-made enums and structs that properties refer to, and how can they be found? No pass/fail.
 import ue4ss
 
 for path in ("/Game/UI/Blueprints/CinematicMenuMode.CinematicMenuMode", "/Game/UI/WidgetsFrontend/Quests/QuestCriteriaEntryData.QuestCriteriaEntryData",

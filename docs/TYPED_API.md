@@ -1,7 +1,7 @@
-# Typed API: engine classes as Python types (design record for ypy.1)
+# Typed API: engine classes as Python types (design record)
 
 Goal: scripts use engine classes, structs and enums as Python types (`from ue4ss.engine import Actor, GameplayStatics, Vector`),
-and editors know them (completion, hover, type checking) **for the user's own game**. Requirement from the owner: everything that can
+and editors know them (completion, hover, type checking) **for the user's own game**. Requirement: everything that can
 be generated is generated, **at runtime, inside the game, from the reflection data** the mod already reads. No SDK dump, no external
 tool, no AI tool: one call in the game gives a user the typings; the runtime classes need no generation step at all.
 
@@ -23,7 +23,7 @@ tool, no AI tool: one call in the game gives a user the typings; the runtime cla
    values by struct name. **Enums** are `IntEnum`s built from `UEnum.get_names()`.
 5. **Everything is created on first use and cached by engine path**, parents first. Blueprint classes work the same way through
    `find(path)` (loaded by `KismetSystemLibrary.LoadClassAsset_Blocking(path)` when needed).
-6. **Stubs (`.pyi`) come from the same reflection walk**, written by the mod itself (ticket ypy.3): per package, one file for classes,
+6. **Stubs (`.pyi`) come from the same reflection walk**, written by the mod itself: per package, one file for classes,
    structs and enums, with typed attributes for properties, typed methods for functions (out parameters as tuple results, in/out as in
    `docs/API.md`), `Optional[...]` for object references, `Array`/`Map`/`Set` for containers, `str` for `FText` and soft references. The
    runtime classes of decision 2 are the classes the stubs describe, so what the editor shows is what runs.
@@ -52,7 +52,7 @@ tool, no AI tool: one call in the game gives a user the typings; the runtime cla
 - `Actor.find_all()`, static calls, structs, enums (`EPyColor` as `IntEnum`), `dir(GameplayStatics)` listing the engine functions,
   unknown names (`EngineError`), missing functions (`AttributeError`) behave as designed.
 
-## What the generator needs from the mod (ypy.3 work list)
+## What the generator needs from the mod (work list)
 
 The reflection data the stubs need beyond what `UStruct`/`UFunction` expose now:
 - `UStruct.get_properties()`: for each property its name, a type descriptor (category, engine property class, the class/struct/enum path for
@@ -136,6 +136,6 @@ second); it logs a slow-callback warning but needs no chunking at these sizes.
 ## Open points (decided later, tracked in the tickets)
 
 - Name clashes between engine functions and the wrapper's own methods (`get_class`, `is_valid`, ...): the wrapper's methods win; the stub
-  lists the engine function under the wrapper's prefix rule decided in ypy.3.
+  lists the engine function under the wrapper's prefix rule.
 - Whether `engine.<Name>` should also accept the `U`/`A`/`F`/`E` prefixed C++ names (`AActor`): not now.
-- Sizes and load time for Chivalry 2 (tens of thousands of classes): measured in ypy.4.
+- Sizes and load time for a large game (tens of thousands of classes): see "Measured (as built)" above.

@@ -1,5 +1,5 @@
 """python/examples/thread_guard_main.py calls every entry point from a worker thread. A new public function or method of the
-ue4ss module must appear in it, so that the game-thread rule is checked for it too (ticket ft9.4)."""
+ue4ss module must appear in it, so that the game-thread rule is checked for it too."""
 import inspect
 import re
 import sys

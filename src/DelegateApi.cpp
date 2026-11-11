@@ -115,7 +115,7 @@ namespace pyue::delegates
             }
         }
 
-        // Wildcard diagnostic (bxc): when on, record delegate-signature function names (bounded).
+        // Wildcard diagnostic: when on, record delegate-signature function names (bounded).
         std::atomic<bool> s_broadcast_diag{false};
         std::mutex s_broadcast_diag_mutex;
         std::vector<std::wstring> s_broadcast_diag_names;
@@ -440,7 +440,7 @@ namespace pyue::delegates
         s_reset_count.fetch_add(1);
     }
 
-    // --- manual-detour self test (bxc) ---------------------------------------------------------------
+    // --- manual-detour self test ---------------------------------------------------------------
     // Installs a PLH x64Detour on UObject::ProcessEvent with a plain C++ counter callback and NO UEPseudo dispatch
     // machinery, to answer: does a detour at this address fire at all in this game? If the counter increases while the
     // UEPseudo pre-callbacks (process_events_seen) stay 0, the problem is UEPseudo's dispatch, not the address. If the

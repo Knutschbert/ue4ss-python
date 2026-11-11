@@ -1,4 +1,4 @@
-# register_hook(instance=obj) and Blueprint function paths (rqf.2).
+# register_hook(instance=obj) and Blueprint function paths.
 # Test game: the instance filter on PyTestActor.AddInts. Chivalry 2: hook a function of a Blueprint class that is not loaded yet, filtered to one
 # spawned chair (the path loads the class on demand), and check that exactly that chair's event is reported.
 import ue4ss

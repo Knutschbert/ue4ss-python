@@ -96,7 +96,7 @@ raises("negative flags", ValueError, lambda: ue4ss.find_objects("Actor", banned_
 raises("negative limit", ValueError, lambda: ue4ss.find_objects("Actor", limit=-1))
 raises("find_all_of needs a str", TypeError, lambda: ue4ss.find_all_of(None))
 
-# --- types whose instances are classes, enums, functions (ticket rqf.9) -------------------------------------------------------------
+# --- types whose instances are classes, enums, functions -------------------------------------------------------------
 classes = ue4ss.find_all_of("Class")
 check("find_all_of('Class') lists the classes", len(classes) > 100, str(len(classes)))
 check("they are all classes and none is a default object", all(isinstance(o, ue4ss.UClass) for o in classes[:500]))

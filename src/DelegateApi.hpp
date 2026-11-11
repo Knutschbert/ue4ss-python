@@ -89,13 +89,13 @@ namespace pyue::delegates
     auto broadcast_profile() -> BroadcastProfile;
     auto reset_broadcast_profile() -> void;
 
-    // Manual-detour self test (bxc): a PLH x64Detour on UObject::ProcessEvent with a plain counter
+    // Manual-detour self test: a PLH x64Detour on UObject::ProcessEvent with a plain counter
     // callback and no UEPseudo dispatch. install calls the original through the trampoline; needs the game thread.
     auto install_manual_pe_detour() -> bool;
     auto manual_pe_detour_calls() -> std::uint64_t;
     auto remove_manual_pe_detour() -> void;
 
-    // Wildcard diagnostic (bxc): when on, record the full names of any delegate-signature function
+    // Wildcard diagnostic: when on, record the full names of any delegate-signature function
     // (name containing __DelegateSignature) passing through the global channels, so we can see the actual naming
     // scheme of delegate broadcasts and whether our bound signature is among them. Off costs one atomic load.
     auto set_delegate_broadcast_diag(bool on) -> void;

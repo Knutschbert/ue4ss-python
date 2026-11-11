@@ -1,4 +1,4 @@
-# Blueprint events and functions, one by one (rqf.3/.4): for every function the chair's Blueprint classes declare, hook pre and post
+# Blueprint events and functions, one by one: for every function the chair's Blueprint classes declare, hook pre and post
 # BEFORE the chair is spawned, then record what the engine calls on its own (BeginPlay etc.), what a direct call from Python triggers, what the parameters
 # look like, and which functions the interactable component offers. Prints a matrix; no pass/fail.
 import ue4ss

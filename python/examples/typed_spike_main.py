@@ -1,4 +1,4 @@
-# Typed API spike (ypy.1): engine classes, structs and enums as Python types created at runtime from reflection.
+# Typed API spike: engine classes, structs and enums as Python types created at runtime from reflection.
 # Prints timings that the design record (docs/TYPED_API.md) quotes.
 import time
 

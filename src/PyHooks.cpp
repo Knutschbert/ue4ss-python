@@ -99,7 +99,7 @@ namespace pyue
 
         // The parameter that carries a function's result: its return parameter or, if it has none, its only pure output.
         // Blueprint functions return through output pins, which are ordinary out parameters, so without this rule a post-hook
-        // would see None for them (rqf.8).
+        // would see None for them.
         auto result_parameter(const std::vector<objects::api::ParamInfo>& params) -> ResultParameter
         {
             ResultParameter found{};

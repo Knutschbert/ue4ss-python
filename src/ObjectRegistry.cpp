@@ -68,8 +68,8 @@ namespace pyue::objects
         {
             __try
             {
-                // gy7.5: open the plugin read-guard here too. Frame SEH does not recover this
-                // fault class on Chivalry (bots.md/gy7.1): without the seal a poisoned read escapes this
+                // open the plugin read-guard here too. Frame SEH does not recover this
+                // fault class seen in one game (docs/FAULTS.md): without the seal a poisoned read escapes this
                 // __except and kills the game. The VEH seals the read (zeroed register, no exception), so a
                 // seal counts the read as failed instead of trusting the garbage index it left behind.
                 begin_read_guard();

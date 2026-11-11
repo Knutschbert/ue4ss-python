@@ -39,7 +39,7 @@ and verified (required members present, `SHA256SUMS.txt` matches) before the scr
    accepted just because System32 has them. (automated)
    - `vcruntime140.dll` and `vcruntime140_1.dll` ship with CPython and are copied into `dlls/`.
    - `msvcp140.dll` is not shipped: `main.dll` uses the C++ standard library and UE4SS needs it too, so the game or the
-     Visual C++ Redistributable provides it. Decision recorded in `deo.3`; bundling it is possible if a game turns out
+     Visual C++ Redistributable provides it. Bundling it is possible if a game turns out
      to lack it.
 3. One CPython only: exactly one `python3NN.dll`, and it is 3.12 (`cp312`). Wheels for a later packages feature must be
    `cp312-win_amd64`. (automated)

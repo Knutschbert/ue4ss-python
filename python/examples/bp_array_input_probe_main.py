@@ -1,4 +1,4 @@
-# SetGameTimeOnMeshComponents(MeshComponents: array) of BaseCharacter_C is called by the game itself (rqf.13). What does it do with the array?
+# SetGameTimeOnMeshComponents(MeshComponents: array) of BaseCharacter_C is called by the game itself. What does it do with the array?
 import ue4ss
 from ue4ss import bytecode
 

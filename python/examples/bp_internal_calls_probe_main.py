@@ -1,5 +1,5 @@
 # Do hooks see Blueprint functions that the game's own Blueprint code calls (no Python call involved)? Hook the plain functions of every Blueprint
-# class that has live instances (up to a few hundred), wait 3 seconds in the front-end map and report which ones fired by themselves (rqf.3).
+# class that has live instances (up to a few hundred), wait 3 seconds in the front-end map and report which ones fired by themselves.
 import ue4ss
 
 UBERGRAPH, NATIVE, DELEGATE, EVENT, CALLABLE = 0x8000, 0x400, 0x100000, 0x800, 0x4000000

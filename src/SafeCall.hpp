@@ -16,7 +16,7 @@ namespace pyue
         const void* address{nullptr}; // faulting instruction
         const void* data_address{nullptr}; // for an access violation: the address that was touched
         bool is_write{false};      // for an access violation: it was a write
-        bool sealed{false};        // gy7.3: the plugin's VEH sealed a faulting read instead of it reaching frame SEH
+        bool sealed{false};        // the plugin's VEH sealed a faulting read instead of it reaching frame SEH
     };
 
     using GuardedFunction = void (*)(void* argument);
@@ -24,7 +24,7 @@ namespace pyue
     // Calls fn(argument). True if it returned normally; false if a handled hardware fault happened (then `fault` is filled).
     auto call_guarded(GuardedFunction function, void* argument, FaultInfo& fault) -> bool;
 
-    // gy7.2/gy7.5 handshake with the UnchainedPlugin's VEH (Chivalry). While open on this
+    // Handshake with the UnchainedPlugin's VEH (Chivalry). While open on this
     // thread, the plugin seals a faulting READ at the instruction (its VEH runs before every frame handler,
     // the only handler that reaches the fault class frame SEH cannot recover there). No-ops when the plugin
     // is absent (test game keeps the native __except). Nesting-safe per thread: regions may be open inside

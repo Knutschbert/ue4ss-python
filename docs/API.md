@@ -373,7 +373,7 @@ ue4ss.unregister_key_down(binding)
 * `register_key_down` touches no game objects and may be called from any thread. A callback that raises prints its traceback
   to the log; `sys.exit()` in it is ignored.
 * A key press made BEFORE `register_key_down` does not trigger it: registering consumes any stale `GetAsyncKeyState`
-  state for that key, so the first poll after the call only fires on a press made after it (ticket `7q4.12`).
+  state for that key, so the first poll after the call only fires on a press made after it.
 * UE4SS itself cannot remove a key event once registered, so removed bindings leave a native handler that does nothing.
 
 ## Reloading scripts
@@ -469,13 +469,13 @@ startup self check; do not use them in scripts.
   documented in `docs/FAULTS.md`.
 * **A pointer the game left dangling reads as `None`.** Object references are checked against the global object array before they
   are used, so a stale or garbage pointer in a property, array element or map never crashes the script; it just looks null.
-  On Chivalry 2 the UnchainedPlugin seals a faulting read inside this check too (`gy7.5`), so the stale pointer reads as
+  On Chivalry 2 the UnchainedPlugin seals a faulting read inside this check too, so the stale pointer reads as
   `None` there as well.
 * **Class objects have no instance properties.** `actor_class.bHidden` looks in the metaclass and raises; use
   `actor_class.get_property_names()` to see what instances have.
 * **Owned structs** release themselves when Python drops them (on the game thread, queued there if needed). In the rare case
   that this happens before the game thread is known, one block is leaked.
-* **Hooks and tasks that run too long freeze the game**; there is no time limit yet (ticket `ft9.10`).
+* **Hooks and tasks that run too long freeze the game**; there is no time limit yet; `set_slow_callback_warning` reports slow ones.
 
 ## Not available yet
 

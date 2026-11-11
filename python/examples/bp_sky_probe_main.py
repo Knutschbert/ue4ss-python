@@ -1,4 +1,4 @@
-# The engine Blueprint BP_Sky_Sphere in the test game (rqf.6): class, instance, functions, variables. No pass/fail.
+# The engine Blueprint BP_Sky_Sphere in the test game: class, instance, functions, variables. No pass/fail.
 import ue4ss
 from ue4ss import engine
 

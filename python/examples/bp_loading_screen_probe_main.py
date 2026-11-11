@@ -1,5 +1,5 @@
 # DefaultLoadingScreenPanelWidget (a Blueprint derived from ULoadingScreenPanelWidget, tip from the owner): is its class loaded, what do its
-# functions look like, is there a live instance? (rqf.4). Prints a report; no pass/fail.
+# functions look like, is there a live instance? Prints a report; no pass/fail.
 import ue4ss
 
 classes = [c for c in ue4ss.find_all_of("BlueprintGeneratedClass") if "LoadingScreen" in c.get_full_name()]

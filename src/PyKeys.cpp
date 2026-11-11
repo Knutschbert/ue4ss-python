@@ -80,8 +80,8 @@ namespace pyue
             // Consume any press made BEFORE this registration. UE4SS's Win32 input source polls every
             // subscribed key with GetAsyncKeyState and treats any non-zero result as "the key went down",
             // and GetAsyncKeyState is also non-zero for a press made since the last read even if the key is
-            // up now - so without this, the first poll after register_key_down could fire for an old press
-            // (ticket 7q4.12). One read clears the stale bit before we install the handler.
+            // up now - so without this, the first poll after register_key_down could fire for an old press.
+            // One read clears the stale bit before we install the handler.
             GetAsyncKeyState(key);
             auto handler = [key, modifiers] { on_native_key(key, modifiers); };
             auto& program = UE4SSProgram::get_program();

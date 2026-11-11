@@ -1,4 +1,4 @@
-# Key bindings (7q4.5), headless: a key press is simulated with ue4ss._selftest_fire_key, which takes the same path
+# Key bindings, headless: a key press is simulated with ue4ss._selftest_fire_key, which takes the same path
 # as a real one (native handler -> game thread -> callbacks). A real key press needs a focused game window: see keys_manual_main.py.
 import threading
 

@@ -1,4 +1,4 @@
-# Who calls the simple pure Blueprint getters (one output, no inputs)? Can the callers be run from Python safely? (rqf.10). No pass/fail.
+# Who calls the simple pure Blueprint getters (one output, no inputs)? Can the callers be run from Python safely? No pass/fail.
 import collections
 
 import ue4ss

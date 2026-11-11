@@ -1,4 +1,4 @@
-# Hot reload (deo.2 / deo.4): main.py reloads itself five times in a row. Generation 1 registers a hook, a key binding, a new-object
+# Hot reload: main.py reloads itself five times in a row. Generation 1 registers a hook, a key binding, a new-object
 # notification, a delayed task, a worker thread and a helper module; generation 2 proves none of the old registrations is alive
 # and that the module source and the names in __main__ are fresh, then asks for three reloads at once (which must make one);
 # each later generation repeats the check against all older ones; generation 6 prints the verdict. Run as main.py itself (manifest "startup").

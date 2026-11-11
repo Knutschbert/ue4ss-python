@@ -1,4 +1,4 @@
-# Does the sky Blueprint use an output that a post-hook of BreakRotator changed? (7q4.11). Reads the material parameters it sets. No pass/fail.
+# Does the sky Blueprint use an output that a post-hook of BreakRotator changed? Reads the material parameters it sets. No pass/fail.
 import ue4ss
 
 sky = ue4ss.find_first_of("BP_Sky_Sphere_C")

@@ -1,4 +1,4 @@
-# Threading soak test (ft9.5): for PYUE_SOAK_SECONDS (default 45) four Python threads schedule work on the game
+# Threading soak test: for PYUE_SOAK_SECONDS (default 45) four Python threads schedule work on the game
 # thread while the game thread itself runs nested hooks, spawns and destroys actors and receives new-object notifications.
 # Passes only if nothing hangs (a heartbeat every 500 ms never stalls), every result is right and nothing raised.
 import os

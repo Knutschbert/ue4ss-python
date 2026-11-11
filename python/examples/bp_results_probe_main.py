@@ -1,4 +1,4 @@
-# Where does the value a plain Blueprint function returns live when a post hook runs? (rqf.8)
+# Where does the value a plain Blueprint function returns live when a post hook runs?
 # Hooks pure Blueprint functions without inputs on live instances, calls them from Python and prints, per function: the parameter list
 # (name, type, is_out, is_return), what the post hook saw as `result`, and what it could read from each parameter. No pass/fail.
 import ue4ss

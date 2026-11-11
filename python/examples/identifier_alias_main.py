@@ -1,4 +1,4 @@
-# Engine names that are not Python identifiers ("Sun height") work under the identifier form the typings declare ("Sun_height") (st6.3).
+# Engine names that are not Python identifiers ("Sun height") work under the identifier form the typings declare ("Sun_height").
 # Test game: the variables of the engine Blueprint BP_Sky_Sphere. Chivalry 2: a Blueprint function with spaces in its name (OverviewScreen_C).
 import ue4ss
 

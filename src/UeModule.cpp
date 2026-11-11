@@ -375,7 +375,7 @@ namespace pyue
             });
         }
 
-        // Manual-detour self test (bxc): does a plain PLH detour on ProcessEvent fire at all in this game?
+        // Manual-detour self test: does a plain PLH detour on ProcessEvent fire at all in this game?
         auto selftest_manual_pe_detour(PyObject*, PyObject*) -> PyObject*
         {
             return guard_object([&]() -> PyObject* {
@@ -390,7 +390,7 @@ namespace pyue
             return PyLong_FromUnsignedLongLong(delegates::manual_pe_detour_calls());
         }
 
-        // Wildcard diagnostic (bxc): record/return the names of delegate-signature functions dispatched.
+        // Wildcard diagnostic: record/return the names of delegate-signature functions dispatched.
         auto selftest_delegate_broadcast_diag(PyObject*, PyObject* args) -> PyObject*
         {
             return guard_object([&]() -> PyObject* {

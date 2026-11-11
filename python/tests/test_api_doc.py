@@ -44,10 +44,6 @@ class ApiDocTest(unittest.TestCase):
             with self.subTest(constant=name):
                 self.assertTrue(mentioned(name))
 
-    def test_every_ticket_it_links_is_formatted_like_a_ticket_id(self):
-        for ticket in re.findall(r"`([a-z0-9]{2,3}\.\d+)`", DOC):
-            self.assertRegex(ticket, r"^(2bc|2kb|7q4|a7o|deo|ft9|fx7|gy7|wzm|2i4)\.\d+$")
-
 
 if __name__ == "__main__":
     unittest.main()

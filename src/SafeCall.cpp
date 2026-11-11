@@ -51,10 +51,10 @@ namespace pyue
         thread_local char t_description[160];
     }
 
-    // Diagnostic for gy7.1: an eager, crash-surviving marker so we can tell
+    // Diagnostic: an eager, crash-surviving marker so we can tell
     // whether call_guarded's __except handler actually fired for a fault. Ordinary logging to
     // UE4SS.log is buffered and lost if the process dies, so we append synchronously to a file
-    // in the temp dir. Contributes to the gy7.3 handshake. Removed once the mechanism is proven.
+    // in the temp dir. Contributes to the plugin handshake. Removed once the mechanism is proven.
     void diag_marker(const char* stage, unsigned long code)
     {
         char buffer[MAX_PATH];
@@ -67,9 +67,9 @@ namespace pyue
         std::fclose(f);
     }
 
-    // gy7.2 handshake: when the UnchainedPlugin is present in the process
+    // Plugin handshake: when the UnchainedPlugin is present in the process
     // (Chivalry), its VEH can recover a READ fault inside a call_guarded region on our
-    // behalf (frame-based __except cannot for the Blueprint-VM class; see bots.md/gy7.1).
+    // behalf (frame-based __except cannot for the Blueprint-VM class; see docs/FAULTS.md).
     // We open the handshake for the duration of the guarded engine call so the plugin seals
     // reads but nothing else. When the plugin is absent (test game) these are no-ops and the
     // existing native __except recovery still works.
@@ -125,7 +125,7 @@ namespace pyue
             function(argument);
             end_read_guard();
             // The plugin's VEH may have sealed a READ fault instead of letting it reach our
-            // __except (the Blueprint-VM class never reaches here; see bots.md/gy7.1). Surface it
+            // __except (the Blueprint-VM class never reaches here; see docs/FAULTS.md). Surface it
             // as a fault so the caller raises a clean UEError instead of using a garbage result.
             if (take_sealed_read() > 0)
             {
@@ -133,7 +133,7 @@ namespace pyue
                 fault.is_write = false;
                 fault.data_address = nullptr;
                 fault.address = nullptr;
-                fault.sealed = true; // gy7.3: name the disposition (sealed, not frame SEH)
+                fault.sealed = true; // name the disposition (sealed, not frame SEH)
                 return false;
             }
             return true;
@@ -149,7 +149,7 @@ namespace pyue
             end_read_guard();
             // A READ sealed earlier in this same call (the engine caught it and carried on) would
             // otherwise stay pending and be mis-attributed to the next read_index_guarded on this
-            // thread (gy7.5). The call is abandoned either way, so consume it.
+            // thread. The call is abandoned either way, so consume it.
             take_sealed_read();
             diag_marker("__except_handler", fault.code);
             return false;

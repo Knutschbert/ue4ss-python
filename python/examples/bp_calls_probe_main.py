@@ -1,4 +1,4 @@
-# What do the calls of BP_Sky_Sphere functions look like after bytecode.scan_calls, and which stay unresolved? (rqf.7). No pass/fail.
+# What do the calls of BP_Sky_Sphere functions look like after bytecode.scan_calls, and which stay unresolved? No pass/fail.
 import ue4ss
 from ue4ss import bytecode
 

@@ -1,4 +1,4 @@
-# ue4ss.bytecode on real Blueprint functions (rqf.7): every function with bytecode must parse to its EndOfScript, and the calls inside
+# ue4ss.bytecode on real Blueprint functions: every function with bytecode must parse to its EndOfScript, and the calls inside
 # must resolve. In the test game the Blueprint is the engine's BP_Sky_Sphere; Chivalry 2 has over a thousand.
 import collections
 

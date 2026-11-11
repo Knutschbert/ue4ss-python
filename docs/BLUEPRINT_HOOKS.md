@@ -1,6 +1,11 @@
-# Hooking functions defined in Blueprint assets (survey for rqf.1)
+# Hooking functions defined in Blueprint assets
 
-Measured on 2026-10-23 in Chivalry 2 with `python/examples/bp_hook_survey_main.py`: it loads the Blueprint class
+> [!NOTE]
+> The measurements here were taken in one game, Chivalry 2 (a modified UE 4.25), so class and function names in the tables
+> are that game's. Some of the measuring scripts are specific to it and are not in this repository; the general ones are in
+> [`python/examples`](../python/examples) (`bp_*`).
+
+Measured on 2026-10-23 in Chivalry 2 with a survey script: it loads the Blueprint class
 `/Game/Interactables/World/Seatable/LevelActor_Chair.LevelActor_Chair_C` (`engine.find`, loaded on demand), hooks every function the class has
 (137, own and inherited, `register_hook` with a pre callback), spawns one chair in the front-end map, destroys it after 2.5 s and counts the calls.
 
@@ -30,14 +35,14 @@ Measured on 2026-10-23 in Chivalry 2 with `python/examples/bp_hook_survey_main.p
 - Native functions inherited from `Actor` fired thousands of times (`K2_SetActorRotation` 15215, `GetDistanceTo` 15215, `K2_GetActorLocation` 6086, ...): a hook
   on a function sees the calls of EVERY object, not only of the chair. Hooks need a way to filter by object (`context`), or a hook option for one instance.
 
-## Consequences for the API (decisions for rqf.2 to rqf.5)
+## Consequences for the API
 1. Hooks on Blueprint events should be registered on the event's UFunction and ALSO give access to the ubergraph entry: provide
-   `register_hook(path_of_ubergraph_function, ...)` with `params.EntryPoint` and a helper that maps entry points to the stub names (rqf.4 reads the ubergraph's script to
+   `register_hook(path_of_ubergraph_function, ...)` with `params.EntryPoint` and a helper that maps entry points to the stub names (reading the ubergraph's script gives
    find which stub calls which entry point, or the stubs are hooked by their own call).
 2. `register_hook` needs an instance filter (`register_hook(path, pre, post, instance=obj)` or filtering by the class of `context`) so a script can watch one actor.
-3. Hooks on Blueprint classes must be registered before/without the class being loaded and survive reloads of the class (rqf.2).
+3. Hooks on Blueprint classes must be registered before/without the class being loaded and survive reloads of the class.
 4. Calls from inside a Blueprint graph to its own functions or to native functions are local script calls; this survey did not produce one that was visible.
-   Whether the UE4SS process-local-script-function callbacks see them is the content of rqf.3.
+   Whether the UE4SS process-local-script-function callbacks see them is measured in the matrix below.
 
 Not yet measured: using the chair (OnUsed, the bound event), local script calls, parameters of ubergraph entry points, other Blueprints (weapons, game mode).
 
@@ -50,23 +55,23 @@ Probes: `bp_events_probe_main.py` (the seatable chair: hooks registered before t
 |---|---|---|---|
 | Plain Blueprint function (BlueprintCallable, pure or not; 1376 in the 1256 loaded `/Game` classes) | yes | for calls from Python, from native code AND from other Blueprint code (local calls): 10 of 191 hooked functions fired on their own in 3 s, up to 19305 calls (`Frontend_C::GetTBLSpectatorPawn`) | readable; pre and post both fire |
 | Event graph function `ExecuteUbergraph_<Class>` | yes | for every event of the class: BeginPlay arrived as `EntryPoint` 10 of `LevelActor_BaseSeatable_C`, a direct `OnUsed()` as `EntryPoint` 126 of `LevelActor_WorldBase_NoStats_C` | `EntryPoint` says which event |
-| Event stub of an event graph custom event (`ReceiveBeginPlay`, `OnUsed` of the chair) | yes | was never reported before rqf.11 fixed the null-frame skip (those stubs have no parameters). Re-measured 2026-10-24 on the spawned chair (`bp_events_probe_main.py`): `ReceiveBeginPlay` of `LevelActor_BaseSeatable_C` pre and post 1/1 for the engine call, `OnUsed` 1/1 for the direct call, each next to its `ExecuteUbergraph_...` | none (`EntryPoint` only on the ubergraph) |
-| Event stub of an event (`SetMapNameText(Text)`, `EnabledScreenInputBlocking(Enable)`, parameterless `FadeInMapTexture` of `DefaultLoadingScreenPanelWidget_C`, measured 2026-10-24 on a widget created from Python) | yes | pre and post fire for the stub, nested around `ExecuteUbergraph_<Class>`. A parameterless stub used to be missed: the VM runs a function without parameters and locals with a null frame and the hook wrapper skipped null frames (fixed in rqf.11: it hands out an empty block) | readable; a pre-hook can change bool, text and struct fields and the Blueprint acts on the new value (`bp_event_params_main.py`); object inputs are readable; replacements of events work too |
+| Event stub of an event graph custom event (`ReceiveBeginPlay`, `OnUsed` of the chair) | yes | was never reported before the null-frame skip was fixed (those stubs have no parameters). Re-measured 2026-10-24 on the spawned chair (`bp_events_probe_main.py`): `ReceiveBeginPlay` of `LevelActor_BaseSeatable_C` pre and post 1/1 for the engine call, `OnUsed` 1/1 for the direct call, each next to its `ExecuteUbergraph_...` | none (`EntryPoint` only on the ubergraph) |
+| Event stub of an event (`SetMapNameText(Text)`, `EnabledScreenInputBlocking(Enable)`, parameterless `FadeInMapTexture` of `DefaultLoadingScreenPanelWidget_C`, measured 2026-10-24 on a widget created from Python) | yes | pre and post fire for the stub, nested around `ExecuteUbergraph_<Class>`. A parameterless stub used to be missed: the VM runs a function without parameters and locals with a null frame and the hook wrapper skipped null frames (since fixed: it hands out an empty block) | readable; a pre-hook can change bool, text and struct fields and the Blueprint acts on the new value; object inputs are readable; replacements of events work too |
 | Bound-event handler `BndEvt__...` | yes | not triggered yet (needs the interactable to be used) | not measured |
 | Native base function (`Actor:ReceiveBeginPlay`) | yes | not reported for a Blueprint override | n/a |
 | Array input of a Blueprint function (`BaseCharacter_C:SetGameTimeOnMeshComponents(MeshComponents)`, called by the game itself; Chivalry 2 2026-10-24) | yes | pre and post | the array is the caller's own (an in/out reference): a pre-hook can read it and remove elements, the Blueprint loop then runs only for the rest (2 instead of 6 calls of `SetScalarParameterValueOnMaterials`), and a post-hook can append them back (`bp_array_input_main.py`) |
 | Struct input of a Blueprint function (`GamepadCalloutsEntry_C:SetColor(Color)`, 23 calls by the game) | yes | pre and post | fields are readable and writable; the changed colour reached `Image.SetColorAndOpacity` in all calls (`bp_struct_input_main.py`) |
 | Output of a Blueprint function that another Blueprint function calls (`Frontend_C:DistanceScaling` calls `GetTBLSpectatorPawn`) | yes | post-hook and replacement of the callee | overriding the callee's object output with NULL, or replacing the callee, changes the caller's result (1.276 to 0.75), `bp_caller_override_main.py` |
-| Local variables of a Blueprint function | not exposed | n/a | hooks see parameters, outputs and the result only; locals live in the frame, are not part of the function's parameter list and are not readable by name (decision of rqf.13: not supported) |
+| Local variables of a Blueprint function | not exposed | n/a | hooks see parameters, outputs and the result only; locals live in the frame, are not part of the function's parameter list and are not readable by name (decided: not supported) |
 | `register_replacement` of a Blueprint function (`BP_Sky_Sphere:UpdateSunDirection`, `RefreshMaterial`; test game, 2026-10-24) | yes | runs INSTEAD of the function for Python calls and for calls made by other Blueprint code (the construction script calling `RefreshMaterial`); returning `CALL_ORIGINAL` runs it; calling the function inside the replacement runs the original | parameters and outputs as in hooks; the result is written to the VM's result slot (return value) or the single output parameter; `bp_sky_replacement_main.py` |
 | Native function with out parameters called FROM Blueprint code (`KismetMathLibrary:BreakRotator` inside `BP_Sky_Sphere.UpdateSunDirection`, a CallMath instruction; test game, 2026-10-24) | yes | pre and post fire although the call does not go through ProcessEvent | inputs readable and writable in the pre-hook; the post-hook reads the real outputs; outputs written in the post-hook are used by the Blueprint (the sky's cloud colour changed), `bp_native_out_params_main.py` |
 
 Not yet in the table: replicated events when used by a player, results of Blueprint functions.
 
 ## Gaps found
-1. (Fixed in rqf.8.) Blueprint functions return through output pins, which are out parameters without a return flag, so a post-hook saw `result` None for `Frontend_C::IsAtTitleScreen` (its value was readable as `params.IsAtTitleScreen`). A function with a `ReturnValue` always worked. Now `result` is the only pure output when there is no return parameter, and a post-hook can replace it (`bp_results_main.py`); with two or more outputs use `params.<Name>`.
+1. (Fixed.) Blueprint functions return through output pins, which are out parameters without a return flag, so a post-hook saw `result` None for `Frontend_C::IsAtTitleScreen` (its value was readable as `params.IsAtTitleScreen`). A function with a `ReturnValue` always worked. Now `result` is the only pure output when there is no return parameter, and a post-hook can replace it; with two or more outputs use `params.<Name>`.
 2. `Class.find_all()` for `BlueprintGeneratedClass` returns nothing (`find_all_of` gives 0 while `find_objects(class_name="BlueprintGeneratedClass", exact_class=True)` gives 1258): class objects are not found as instances; typed `find_all()` should use the second form for class-of-class types.
-3. To hook one Blueprint EVENT by name, hook its `ExecuteUbergraph_<Class>` function and compare `EntryPoint` with the entry number that the event stub passes; the numbers come from the stub's bytecode (ticket rqf.7), or from one probe call as above.
+3. To hook one Blueprint EVENT by name, hook its `ExecuteUbergraph_<Class>` function and compare `EntryPoint` with the entry number that the event stub passes; the numbers come from the stub's bytecode (`ue4ss.bytecode`), or from one probe call as above.
 
 
 ## Reading what a Blueprint function calls (`ue4ss.bytecode`)
@@ -88,7 +93,7 @@ for call in bytecode.scan_calls(func):
 
 Measured (Chivalry 2, front-end map, 2026-10-24): all 7051 functions of the 1491 loaded Blueprint classes parse to their `EndOfScript` with no failure, 36923 calls found (15029 final, 14355 math, 7294 virtual, 245 delegate), every target resolved. `ExecuteUbergraph_LevelActor_BaseSeatable` calls `SiegeMountPoint:SetInteractableComponent`. Example: `bytecode_main.py`.
 
-## Binding a Python callback to a multicast delegate (event dispatcher) — `7q4.14`
+## Binding a Python callback to a multicast delegate (event dispatcher)
 
 Survey notes (design; implementation + in-game verification pending the game gate). The goal is the `Bind Event-to` / `BindDynamic` /
 `AttachEventTo` counterpart: register a fresh Python function on a delegate *property*, not hook a function the delegate already invokes.
@@ -126,15 +131,15 @@ arm and return, doing its checks in delayed tasks (`ue4ss.execute_with_delay`), 
 "how much do our hooks slow the game" answer: negligible). UnchainedPlugin's ProcessEvent `retour` hook was ruled out by
 a control rebuild (it needs `--desync-patch`, never passed, and `retour.initialize()` alone does not rewrite the target).
 
-**Still open for bind_event (`7q4.14`): delivery on a broadcast of the bound signature.** The channels, the
+**Still open for bind_event: delivery on a broadcast of the bound signature.** The channels, the
 registration, and the InvocationList injection are proven; a wildcard capture (`_selftest_delegate_broadcast_diag`)
 confirms delegate broadcasts dispatch and are capturable - but every observed name is a BP-bound handler
 (`..._C:BndEvt__...__DelegateSignature`); a native C++ multicast delegate's `__DelegateSignature` injected into the
 InvocationList never dispatched (in both games). Two candidate causes: the broadcast never ran (an authority check, e.g.
 `SetCinematicMode`'s `if (!HasAuthority()) return;` in a client session), or a native delegate's signature UFunction is
-not a callable member. Tracked as `bxc`; a BP Event Dispatcher (whose `__DelegateSignature` is a class
+not a callable member. This is an open problem; a BP Event Dispatcher (whose `__DelegateSignature` is a class
 member per the kismet catalog) or a listen-server session would distinguish the two. All experiment changes were
-reverted (plugin source + owner settings restored).
+reverted.
 
 **Discovery pass (2026-11-01, Chivalry 2 Frontend, non-blocking):** the global
 ProcessEvent/local-script collector saw 204 unique function names, 3,172,671

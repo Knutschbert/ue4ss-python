@@ -1,4 +1,4 @@
-# Replacements of Blueprint functions (7q4.10), on the engine Blueprint BP_Sky_Sphere in the test game. A Blueprint function runs in the script
+# Replacements of Blueprint functions, on the engine Blueprint BP_Sky_Sphere in the test game. A Blueprint function runs in the script
 # VM, so a replacement is seen for a Python call as well as for a call made by other Blueprint code (the construction script calls RefreshMaterial).
 import ue4ss
 

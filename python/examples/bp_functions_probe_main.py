@@ -1,5 +1,5 @@
 # Plain Blueprint functions (not events, not the ubergraph): find loaded Blueprint classes that declare some, hook a few on live instances, call them
-# from Python and see whether pre/post fire and what the parameters and the result look like (rqf.4). Prints a report; no pass/fail.
+# from Python and see whether pre/post fire and what the parameters and the result look like. Prints a report; no pass/fail.
 import ue4ss
 from ue4ss import engine
 

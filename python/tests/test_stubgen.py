@@ -147,7 +147,7 @@ class StubGenTest(unittest.TestCase):
 
 
 class BlueprintLayoutTest(unittest.TestCase):
-    """Blueprint classes get a module per content folder, laid out like the content browser (st6.2)."""
+    """Blueprint classes get a module per content folder, laid out like the content browser."""
 
     def setUp(self):
         ue4ss._mock_reset_objects()

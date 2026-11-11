@@ -171,7 +171,7 @@ def collect(mod_dir: Path, version: str, ue4ss_ref: str, api_doc: Optional[Path]
     for path in sorted(mod_dir.rglob("*")):
         if path.is_file():
             relative = path.relative_to(mod_dir).as_posix()
-            if path.suffix.lower() == ".pdb":   # gy7.4: the PDB is for in-game crash diagnosis, not the release
+            if path.suffix.lower() == ".pdb":   # the PDB is for in-game crash diagnosis, not the release
                 continue
             # a developer's own main.py must not ship: the release gets a stub the user replaces with their script
             data = STUB_MAIN.encode("utf-8") if relative == "python_scripts/main.py" else path.read_bytes()

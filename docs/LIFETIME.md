@@ -1,8 +1,8 @@
 # UObject lifetime: handle design
 
-Decision record for 2kb.1. Everything under "Facts" was read from RE-UE4SS
-97adba0 / UEPseudo fbb4fdd; "Open questions" are not verified and are covered by the `[WIN]` test
-2kb.6.
+Decision record. Everything under "Facts" was read from RE-UE4SS
+97adba0 / UEPseudo fbb4fdd; "Open questions" were not verified at the time of writing; what was checked
+later is under "Findings from real games".
 
 ## Problem
 A Python wrapper outlives the Unreal object it points at. After a level change or GC the raw
@@ -68,12 +68,12 @@ Why this works:
 3. Only resolve on the game thread (see the threading epic); validation plus use is then atomic with
    respect to GC.
 4. Borrowed views (struct/array/map views into an object's memory) hold the owning wrapper and
-   resolve through it on every access, so they die with the owner (2kb.4).
+   resolve through it on every access, so they die with the owner.
 5. Pending-kill objects are treated as invalid by default (differs from UE4SS Lua, which checks
    unreachable only). Revisit if scripts need to inspect dying objects.
 6. Python equality/hash of a wrapper is `(index, generation, epoch)`, not the address.
 
-## Open questions (verify in-game, 2kb.6)
+## Open questions (verify in-game)
 - That `NotifyUObjectDeleted` fires for every freed UObject in this 4.25 shipping build, and on
   which thread(s). Plan: log a counter plus thread id from a temporary listener.
 - That objects cannot be freed on a non-game thread while a Python callback is running. If they can,
@@ -91,7 +91,7 @@ not: the game may have left a raw pointer behind after the object died, or never
 inside a structured-exception guard (an unmapped address is not an exception for the script); and accepts the pointer only if
 the slot named by that index holds exactly this address in the global object array. Freed-but-mapped memory has junk in the
 index field, an interior pointer names the wrong slot, and both fail that last check. Anything rejected reads as `None`.
-On Chivalry 2 the UnchainedPlugin seals a faulting read inside this guard too (`gy7.5`), because frame SEH does not
+On Chivalry 2 the UnchainedPlugin seals a faulting read inside this guard too, because frame SEH does not
 recover the Blueprint-VM fault class there — see `docs/FAULTS.md`.
 
 What this does not catch: a pointer to freed memory that happens to hold the bytes of a live object's index (the slot match
@@ -99,7 +99,7 @@ stops it, since the slot's object must equal the address), and memory reused for
 live object; its handle is fresh). `ue4ss._selftest_poison_pointer` plants five kinds of bad pointer for the in-game test
 (`python/examples/poison_main.py`).
 
-## Findings from real games (tickets 2kb.4, 2kb.5, 2kb.6)
+## Findings from real games
 
 Open questions above, answered with what was observed on UE 4.25 Shipping builds:
 

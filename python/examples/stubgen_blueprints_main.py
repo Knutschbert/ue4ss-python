@@ -1,5 +1,5 @@
-# generate_stubs(blueprints=True): the loaded Blueprint classes get typings too, one module per content folder (rqf.5, st6.2).
-# Writes to testgame/stubs_chivalry_bp or testgame/stubs_testgame_bp (git-ignored). The test game has the engine Blueprint BP_Sky_Sphere (rqf.6), Chivalry 2 has its own.
+# generate_stubs(blueprints=True): the loaded Blueprint classes get typings too, one module per content folder.
+# Writes to testgame/stubs_chivalry_bp or testgame/stubs_testgame_bp (git-ignored). The test game has the engine Blueprint BP_Sky_Sphere, Chivalry 2 has its own.
 import ast
 import os
 import time

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Type-check python/typed_checks against the stubs the game generated (ypy.4). Needs mypy in third_party/typecheck (see docs/TYPED_API.md)
+"""Type-check python/typed_checks against the stubs the game generated. Needs mypy in third_party/typecheck (see docs/TYPED_API.md)
 and stubs in testgame/stubs_testgame (run python/examples/stubgen_main.py in the test game, or any game with ue4ss.engine.generate_stubs).
 
     python3 -I tools/check_typed_usage.py

@@ -1,4 +1,4 @@
-# A non-daemon Python thread that never ends must not keep the game from exiting (ft9.7).
+# A non-daemon Python thread that never ends must not keep the game from exiting.
 # The example asks the game to quit; the runner then requires the process to be gone in time (manifest: expect_exit_within).
 import threading
 import time

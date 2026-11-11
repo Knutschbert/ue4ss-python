@@ -1,4 +1,4 @@
-# Observes which OS threads reach which engine entry points (ft9.9). Prints the facts that
+# Observes which OS threads reach which engine entry points. Prints the facts that
 # docs/THREADING.md records; the checks only assert what the design relies on.
 import threading
 

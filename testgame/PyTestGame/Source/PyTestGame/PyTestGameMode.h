@@ -19,6 +19,6 @@ public:
 	UPROPERTY() int32 SpawnedCount = 0;
 
 	// A Blueprint class of the engine (BP_Sky_Sphere: plain functions, an event graph, calls between its own functions), referenced so
-	// that it is cooked into the test game and spawned with the test actors; the Blueprint hook tests (ticket rqf.6) run on it.
+	// that it is cooked into the test game and spawned with the test actors; the Blueprint hook tests run on it.
 	UPROPERTY() TSubclassOf<AActor> SkySphereClass;
 };

@@ -1,4 +1,4 @@
-# Blueprint hooks on a real Blueprint in the test game (rqf.6): the engine's BP_Sky_Sphere, cooked into the test game and spawned by its
+# Blueprint hooks on a real Blueprint in the test game: the engine's BP_Sky_Sphere, cooked into the test game and spawned by its
 # game mode. Covers what the Chivalry 2 Blueprint examples cover, without Chivalry 2: class-of-class lookup, discovery, hooks on plain functions called from
 # Python, hooks on functions another Blueprint function calls, the event graph, variables.
 import ue4ss
@@ -20,7 +20,7 @@ if cls is None:
     print("blueprint sky finished")
     raise SystemExit
 check("the Blueprint class is loaded", cls.is_valid())
-check("find_all_of('BlueprintGeneratedClass') lists it (rqf.9)", cls in ue4ss.find_all_of("BlueprintGeneratedClass"))
+check("find_all_of('BlueprintGeneratedClass') lists it", cls in ue4ss.find_all_of("BlueprintGeneratedClass"))
 check("find_first_of('BlueprintGeneratedClass') finds a Blueprint class", ue4ss.find_first_of("BlueprintGeneratedClass") is not None)
 instances = [i for i in ue4ss.find_all_of("BP_Sky_Sphere_C") if i.get_class() == cls]
 check("the game mode spawned one instance", len(instances) == 1, str(instances))

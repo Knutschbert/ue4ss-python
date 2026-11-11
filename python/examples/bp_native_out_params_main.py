@@ -1,4 +1,4 @@
-# Out parameters of a native function that Blueprint code calls (7q4.11): BP_Sky_Sphere.UpdateSunDirection calls
+# Out parameters of a native function that Blueprint code calls: BP_Sky_Sphere.UpdateSunDirection calls
 # KismetMathLibrary:BreakRotator from its bytecode (a CallMath instruction), so the call does not go through ProcessEvent.
 import ue4ss
 from ue4ss import bytecode

@@ -548,7 +548,7 @@
    "min_pass": {
     "testgame": 1
    },
-   "note": "ypy.1 spike: engine types created from reflection; timings are printed"
+   "note": "engine types created from reflection; timings are printed"
   },
   {
    "file": "engine_types_main.py",
@@ -572,7 +572,7 @@
    "min_pass": {
     "testgame": 12
    },
-   "note": "ypy.3: the in-game stub generator; output in testgame/stubs_<target> (git-ignored)"
+   "note": "the in-game stub generator; output in testgame/stubs_<target> (git-ignored)"
   },
   {
    "file": "hook_instance_main.py",
@@ -591,7 +591,7 @@
    "kind": "probe",
    "targets": [],
    "startup": true,
-   "note": "rqf.3/.4: Blueprint events and functions matrix for Chivalry 2"
+   "note": "Blueprint events and functions matrix for Chivalry 2"
   },
   {
    "file": "bp_functions_probe_main.py",
@@ -599,7 +599,7 @@
    "kind": "probe",
    "targets": [],
    "startup": true,
-   "note": "rqf.4: plain Blueprint functions in Chivalry 2"
+   "note": "plain Blueprint functions in Chivalry 2"
   },
   {
    "file": "bp_loading_screen_probe_main.py",
@@ -607,7 +607,7 @@
    "kind": "probe",
    "targets": [],
    "startup": true,
-   "note": "rqf.4: the loading screen widget Blueprint in Chivalry 2"
+   "note": "the loading screen widget Blueprint in Chivalry 2"
   },
   {
    "file": "stubgen_blueprints_main.py",
@@ -619,7 +619,7 @@
    "min_pass": {
     "testgame": 7
    },
-   "note": "rqf.5: typings of the loaded Blueprint classes"
+   "note": "typings of the loaded Blueprint classes"
   },
   {
    "file": "bp_sky_main.py",
@@ -631,7 +631,7 @@
    "min_pass": {
     "testgame": 10
    },
-   "note": "rqf.6: hooks and discovery on the engine Blueprint BP_Sky_Sphere cooked into the test game"
+   "note": "hooks and discovery on the engine Blueprint BP_Sky_Sphere cooked into the test game"
   },
   {
    "file": "bp_names_probe_main.py",
@@ -650,21 +650,21 @@
    "min_pass": {
     "testgame": 4
    },
-   "note": "rqf.7: Blueprint bytecode walker on every loaded Blueprint function"
+   "note": "Blueprint bytecode walker on every loaded Blueprint function"
   },
   {
    "file": "bp_calls_probe_main.py",
    "marker": "calls probe finished",
    "kind": "probe",
    "targets": [],
-   "note": "rqf.7: calls found in the bytecode of BP_Sky_Sphere"
+   "note": "calls found in the bytecode of BP_Sky_Sphere"
   },
   {
    "file": "bp_sky_probe_main.py",
    "marker": "sky probe finished",
    "kind": "probe",
    "targets": [],
-   "note": "rqf.6: the engine Blueprint BP_Sky_Sphere in the test game"
+   "note": "the engine Blueprint BP_Sky_Sphere in the test game"
   },
   {
    "file": "bp_native_out_params_main.py",
@@ -676,14 +676,14 @@
    "min_pass": {
     "testgame": 6
    },
-   "note": "7q4.11: out parameters of a native function called from Blueprint code (BreakRotator inside BP_Sky_Sphere)"
+   "note": "out parameters of a native function called from Blueprint code (BreakRotator inside BP_Sky_Sphere)"
   },
   {
    "file": "bp_native_out_probe_main.py",
    "marker": "native out probe finished",
    "kind": "probe",
    "targets": [],
-   "note": "7q4.11: does Blueprint code use an output written by a post-hook of a native function"
+   "note": "does Blueprint code use an output written by a post-hook of a native function"
   },
   {
    "file": "bp_sky_replacement_main.py",
@@ -695,7 +695,7 @@
    "min_pass": {
     "testgame": 11
    },
-   "note": "7q4.10: replacements of Blueprint functions, also when Blueprint code calls them"
+   "note": "replacements of Blueprint functions, also when Blueprint code calls them"
   },
   {
    "file": "bp_results_probe_main.py",
@@ -703,7 +703,7 @@
    "kind": "probe",
    "targets": [],
    "startup": true,
-   "note": "rqf.8: where the value of a Blueprint function lives in a post hook"
+   "note": "where the value of a Blueprint function lives in a post hook"
   },
   {
    "file": "bp_internal_calls_probe_main.py",
@@ -711,7 +711,7 @@
    "kind": "probe",
    "targets": [],
    "startup": true,
-   "note": "rqf.3: plain Blueprint functions called by Blueprint code, seen by hooks?"
+   "note": "plain Blueprint functions called by Blueprint code, seen by hooks?"
   },
   {
    "file": "bp_caller_override_probe_main.py",
@@ -719,7 +719,7 @@
    "kind": "probe",
    "targets": [],
    "startup": true,
-   "note": "rqf.10: does a post-hook override of a Blueprint output reach the Blueprint that called the function"
+   "note": "does a post-hook override of a Blueprint output reach the Blueprint that called the function"
   },
   {
    "file": "bp_input_calls_probe_main.py",
@@ -727,7 +727,7 @@
    "kind": "probe",
    "targets": [],
    "startup": true,
-   "note": "rqf.13: Blueprint functions with array/struct inputs that the game calls by itself"
+   "note": "Blueprint functions with array/struct inputs that the game calls by itself"
   },
   {
    "file": "bp_array_input_probe_main.py",
@@ -735,7 +735,7 @@
    "kind": "probe",
    "targets": [],
    "startup": true,
-   "note": "rqf.13: the bytecode of SetGameTimeOnMeshComponents"
+   "note": "the bytecode of SetGameTimeOnMeshComponents"
   },
   {
    "file": "identifier_alias_main.py",
@@ -747,7 +747,7 @@
    "min_pass": {
     "testgame": 4
    },
-   "note": "st6.3: the identifier form of engine names with spaces works at runtime"
+   "note": "the identifier form of engine names with spaces works at runtime"
   },
   {
    "file": "stubgen_game_module_main.py",
@@ -759,14 +759,14 @@
    "min_pass": {
     "testgame": 7
    },
-   "note": "st6.1: typings of the game module alone (with its dependencies)"
+   "note": "typings of the game module alone (with its dependencies)"
   },
   {
    "file": "user_defined_types_probe_main.py",
    "marker": "user defined probe finished",
    "kind": "probe",
    "targets": [],
-   "note": "st6.2: Blueprint-made enums and structs"
+   "note": "Blueprint-made enums and structs"
   },
   {
    "file": "engine_imports_main.py",
@@ -798,7 +798,7 @@
    "min_pass": {
     "testgame": 4
    },
-   "note": "58j.26.20: held keys (W A S D) through ctypes GetAsyncKeyState without C++ changes; the owner can press keys during the 15 s poll"
+   "note": "held keys (W A S D) through ctypes GetAsyncKeyState without C++ changes; keys can be pressed during the 15 s poll"
   }
  ]
 }

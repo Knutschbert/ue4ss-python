@@ -1,4 +1,4 @@
-"""ue4ss.bytecode: the Blueprint bytecode walker, on hand-made byte sequences (rqf.7)."""
+"""ue4ss.bytecode: the Blueprint bytecode walker, on hand-made byte sequences."""
 import pathlib
 import struct
 import sys

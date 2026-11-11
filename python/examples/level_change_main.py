@@ -1,5 +1,5 @@
 # Wrappers and views held across a level change and a forced garbage collection must raise InvalidObjectError (no crash), and
-# the delete listener must keep working: counts and threads of the deletions are recorded (docs/LIFETIME.md, ticket 2kb.6).
+# the delete listener must keep working: counts and threads of the deletions are recorded (docs/LIFETIME.md).
 # Needs the test game: PyTestActor objects are recreated by the game mode when the map is loaded again.
 import ue4ss
 

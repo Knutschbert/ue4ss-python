@@ -1,4 +1,4 @@
-# Typings for the game's own module only (st6.1): generate_stubs(folder, packages=["TBL"]) in Chivalry 2, ["PyTestGame"] in the test game.
+# Typings for the game's own module only: generate_stubs(folder, packages=["TBL"]) in Chivalry 2, ["PyTestGame"] in the test game.
 # The packages the module needs (Engine, CoreUObject, ...) come along; dependencies=False writes the module alone. Writes to testgame/stubs_*_module (git-ignored).
 import ast
 import os

@@ -1,4 +1,4 @@
-# Which Blueprint functions with array or struct INPUTS does the game call by itself within a few seconds, and what do they receive? (rqf.13)
+# Which Blueprint functions with array or struct INPUTS does the game call by itself within a few seconds, and what do they receive?
 # Hooks every Blueprint function with a non-output array/struct/object parameter (pre only) and reports the ones that fire. No pass/fail.
 import ue4ss
 

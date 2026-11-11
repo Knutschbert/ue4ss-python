@@ -1,7 +1,7 @@
 # Threading and the GIL
 
-Decision record for ft9.1. "Facts" were read from RE-UE4SS 97adba0 / UEPseudo
-fbb4fdd and from your game's UE4SS.log; "Observed" results come from ft9.9.
+Decision record. "Facts" were read from RE-UE4SS 97adba0 / UEPseudo
+fbb4fdd and from your game's UE4SS.log; "Observed" results come from `python/examples/thread_ids_main.py`.
 
 ## Threads
 | Thread | What runs there | Python allowed |
@@ -24,12 +24,12 @@ fbb4fdd and from your game's UE4SS.log; "Observed" results come from ft9.9.
 - Lua's `ExecuteInGameThread` queues actions under a recursive mutex and drains them from the engine
   tick (default, setting `DefaultExecuteInGameThreadMethod = EngineTick`) or from a `ProcessEvent`
   hook, and refuses to start an action while another is executing.
-- The UnchainedPlugin read-fault seal (`gy7.2`) is per-thread: `call_guarded` opens the plugin
+- The UnchainedPlugin read-fault seal is per-thread: `call_guarded` opens the plugin
   read-guard on the calling thread for the duration of one guarded engine call, the VEH seals on
   the faulting thread (the same thread while the guard is open), and the sealed count is consumed
   on the same thread after the call. No cross-thread state, nothing held across a GIL boundary.
 
-## Observed (ft9.9)
+## Observed
 Measured with `ue4ss._selftest_thread_probe()` and `python/examples/thread_ids_main.py` (the probe counts
 calls and distinct Windows thread ids per entry point; it keeps at most 8 ids per site).
 
@@ -90,19 +90,19 @@ calls and distinct Windows thread ids per entry point; it keeps at most 8 ids pe
 ## Startup and shutdown
 - `main.py` currently runs on the event-loop thread. It may use `print`, imports, and register hooks and
   callbacks, but UE-touching calls will raise until the script runs on the game thread. Decision: run
-  `main.py` from the queue on the first engine tick (ft9.8).
-- Shutdown policy (ft9.7): **nothing is finalized when the game exits.** UE4SS's `DllMain` skips the
+  `main.py` from the queue on the first engine tick.
+- Shutdown policy: **nothing is finalized when the game exits.** UE4SS's `DllMain` skips the
   program destructor when the process terminates (`lpReserved` is non-null), so `~PythonScriptingMod` and `Py_FinalizeEx`
   never run, and Windows ends every Python thread with the process. A non-daemon thread therefore cannot block the exit.
   Observed in the test game: `python/examples/shutdown_thread_main.py` starts a non-daemon thread that never ends and quits the
   game; the process was gone about 5 s later and no destructor message reached the log. Scripts that must save state at exit
   cannot rely on a Python shutdown hook (`atexit` does not run); save when the state changes.
-- The destructor path only runs if UE4SS unloads the mod with `FreeLibrary` (hot reload, ticket `deo.2`). Not
+- The destructor path only runs if UE4SS unloads the mod with `FreeLibrary` (hot reload). Not
   exercised yet; it would need a bounded wait for non-daemon threads before `Py_FinalizeEx`.
 - `threading.main_thread()` is the init thread (the `ue4ss` module imports `threading` while it initialises there), not the game
   thread; checked by the same example.
 
-## ProcessEvent fallback (ft9.11)
+## ProcessEvent fallback
 When the engine-tick hook is missing the executor drains from a `ProcessEvent` post callback and takes the thread of the first
 call as the game thread. Set the environment variable `PYUE_EXECUTOR=processevent` to force this path for a test
 (`python/examples/executor_fallback_main.py`, manifest `env`). Observed: in the test game and in 3 of 3 Chivalry 2 runs the
@@ -111,7 +111,7 @@ although Chivalry 2 calls `ProcessEvent` from 8 or more threads later on. The ca
 after the hook is installed happens to be the game thread at that moment), so the fallback is kept as a last resort and logs
 `ProcessEvent (fallback, unverified)`; a game whose first call comes from another thread would run Python on the wrong thread.
 
-## Soak test (ft9.5)
+## Soak test
 `python/examples/soak_main.py` (test game): for `PYUE_SOAK_SECONDS` (default 45) four Python threads schedule work on the game
 thread (`call_in_game_thread` with futures, and `execute_in_game_thread` with events) while the game thread runs a hook on
 `AddInts` that calls `SwapInts` (a hook inside a hook), spawns and destroys actors every 200 ms and receives new-object
@@ -121,11 +121,11 @@ actors all notified, 1200 heartbeats, longest gap 0.52 s, no error. The finish s
 thread (they may be waiting for a task only that thread can run): it polls instead.
 
 ## Not decided here
-- Per-callback time limit / slow-callback warning (nice to have, ft9.10).
+- Per-callback time limit / slow-callback warning (nice to have).
 - Sub-interpreters: rejected for now. They isolate scripts but most C extensions and our own static
   module state assume a single interpreter.
 
-## Thread-affinity guard (ticket ft9.4)
+## Thread-affinity guard
 
 Every call that reads or writes Unreal data, or calls into the engine, begins with `game_thread_executor::require_game_thread()`
 and raises `UEError` ("... must run on the game thread; use ue4ss.execute_in_game_thread or ue4ss.call_in_game_thread") from any
