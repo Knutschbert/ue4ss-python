@@ -71,6 +71,7 @@ tools/run_host_tests.sh                      # C++ tests of core/ (clang++, any 
 | `core/` | Header-only logic without Unreal includes, with host tests |
 | `python/lib/ue4ss/` | Pure-Python modules shipped with the mod: typed layer, stub generator, bytecode reader, call tracer |
 | `python/mock/` | The off-game `ue4ss` module |
+| `python/typings/` | Shipped typings of the base `ue4ss` module (`docs/STUBS.md`) |
 | `python/examples/` | In-game examples and tests (`manifest.json` lists them) |
 | `testgame/` | A small UE 4.25 project used as a test target (`docs/TESTGAME.md`) |
 | `tools/` | Build, package, release and typecheck scripts |

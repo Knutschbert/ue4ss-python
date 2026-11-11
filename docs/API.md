@@ -479,4 +479,5 @@ startup self check; do not use them in scripts.
 
 ## Not available yet
 
-`.pyi` stubs (`wzm.*`).
+* Installing third-party packages (pip wheels); the standard library is complete.
+* More than one entry script: `main.py` is the only file the mod runs by itself (it can import others).

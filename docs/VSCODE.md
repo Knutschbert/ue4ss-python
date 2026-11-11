@@ -8,15 +8,22 @@ the mod's `main.py`.
 1. Install **VS Code** with the **Python** extension (Microsoft). It brings **Pylance**, the part that reads the typings.
    Use a normal Windows Python 3.12.
 2. **File > Open Folder** and open this repository. It contains the settings VS Code needs:
-   - `.vscode/settings.json` points Pylance at the typings (`stubs/`) and at the helper package (`python/lib`),
-   - `pyrightconfig.json` says the same for the command-line checker,
+   - `pyrightconfig.json` points Pylance and the command-line checker at the typings: `stubs/` (written by your game),
+     `python/typings` (the base `ue4ss` module, shipped) and the helper package `python/lib`. With this file present,
+     Pylance ignores the `python.analysis.*` settings, so they are not repeated in `.vscode/settings.json`,
    - `.vscode/tasks.json` and `.vscode/launch.json` hold the deploy buttons (below).
-3. Generate the typings once (next section), then check it works: hover over `GameplayStatics` in a script: you should see
-   the engine class, not "Unknown". `Vector(Q=1.0)` gets a red squiggle ("No parameter named Q").
-   If imports stay unresolved: Command Palette > "Python: Restart Language Server", and check that `stubs/ue4ss` exists.
+3. The base module works at once: type `ue4ss.find_` in a script and completion lists `find_first_of`, `find_all_of`, ...
+   Engine and game classes need the typings of your game (next section). After generating them, hover over
+   `GameplayStatics`: you should see the engine class, not "Unknown". `Vector(Q=1.0)` gets a red squiggle ("No parameter
+   named Q"). If imports stay unresolved: Command Palette > "Python: Restart Language Server", and check that
+   `stubs/ue4ss` exists.
 
 ## Where the typings come from
-The typings are written by the game itself from its own reflection data, so they match the game and its version exactly.
+The base `ue4ss` module (`find_*`, hooks, keys, `UObject`) is typed by the files in `python/typings`, shipped with the
+repository (`docs/STUBS.md`). Engine and game classes (`ue4ss.engine`) are different for every game: until you generate
+them, every name imported from `ue4ss.engine` is accepted and typed `Any`.
+
+The game typings are written by the game itself from its own reflection data, so they match the game and its version exactly.
 Run this once as `main.py` (and again after a game update), then "Developer: Reload Window":
 
 ```python
@@ -58,7 +65,8 @@ underlined before you start the game. Objects returned by the path-string functi
 `third_party/typecheck`, see `docs/TYPED_API.md`).
 
 ## Troubleshooting
-- *Nothing is completed / `ue4ss` is unresolved*: `stubs/ue4ss` is missing (generate it) or you opened a different folder.
+- *Nothing is completed / `ue4ss` is unresolved*: you opened a different folder than the repository root.
+- *Engine classes are `Any`, no completion on `pawn.`*: `stubs/ue4ss` is missing; generate the game typings.
 - *Squiggles on correct code after a game update*: the typings are older than the game; regenerate them.
 - *"Deploy" says NOT deployed*: the message names the syntax error and line; nothing was copied.
 - *"dist\PythonScripting does not exist"*: package the mod once (`tools/package_mod.py`, see `docs/BUILDING.md`).

@@ -88,8 +88,34 @@ def _clean_type(text, known):
     return text if names <= (known | _BUILTIN_TYPES | {"T", "K", "V"}) else "Any"
 
 
-def _def_line(indent, name, doc, method=False, known=frozenset()):
-    """One `def` from a docstring signature; `self` is added for methods whose signature does not name it."""
+def _signature_of(obj, method):
+    """The parameter list of a Python function (names and which have defaults, all typed Any), or None for built-ins that do not tell."""
+    target = getattr(obj, "__func__", obj)
+    try:
+        parameters = list(inspect.signature(target).parameters.values())
+    except (TypeError, ValueError):
+        return None
+    if method and parameters and parameters[0].name in ("self", "cls"):
+        parameters = parameters[1:]
+    pieces, star = [], False
+    for parameter in parameters:
+        default = " = ..." if parameter.default is not inspect.Parameter.empty else ""
+        if parameter.kind is inspect.Parameter.VAR_POSITIONAL:
+            pieces.append(f"*{parameter.name}: Any")
+            star = True
+        elif parameter.kind is inspect.Parameter.VAR_KEYWORD:
+            pieces.append(f"**{parameter.name}: Any")
+        else:
+            if parameter.kind is inspect.Parameter.KEYWORD_ONLY and not star:
+                pieces.append("*")
+                star = True
+            pieces.append(f"{parameter.name}: Any{default}")
+    return ", ".join((["self"] if method else []) + pieces)
+
+
+def _def_line(indent, name, doc, method=False, known=frozenset(), obj=None):
+    """One `def` from a docstring signature; `self` is added for methods whose signature does not name it. Without a usable docstring the
+    signature of a Python function is read from the function itself (the off-game module); built-ins get the generic one."""
     match = _SIGNATURE.match(doc or "")
     if match and match.group("name") == name:
         args = match.group("args").strip()
@@ -110,6 +136,9 @@ def _def_line(indent, name, doc, method=False, known=frozenset()):
             return line
         except SyntaxError:
             pass   # an odd docstring: fall through to the generic signature
+    signature = _signature_of(obj, method) if obj is not None else None
+    if signature is not None:
+        return f"{indent}def {name}({signature}) -> Any: ..."
     return f"{indent}def {name}({'self, ' if method else ''}*args: Any, **kwargs: Any) -> Any: ..."
 
 
@@ -148,7 +177,7 @@ def make_base_stub(module):
             if member.startswith("_") or not callable(value) and not isinstance(value, (classmethod, staticmethod)):
                 continue
             if inspect.isroutine(value) or inspect.ismethoddescriptor(value) or isinstance(value, (classmethod, staticmethod)):
-                lines.append(_def_line("    ", member, getattr(value, "__doc__", None), method=True, known=known))
+                lines.append(_def_line("    ", member, getattr(value, "__doc__", None), method=True, known=known, obj=value))
                 body += 1
         if name == "UObject":
             lines.append("")
@@ -171,7 +200,7 @@ def make_base_stub(module):
     for name, cls in classes:
         emit(name, cls)
     for name, func in sorted(functions):
-        lines.append(_def_line("", name, getattr(func, "__doc__", None), known=known))
+        lines.append(_def_line("", name, getattr(func, "__doc__", None), known=known, obj=func))
     for name in sorted(constants):
         lines.append(f"{name}: Any")
     lines.append("def __getattr__(name: str) -> Any: ...")

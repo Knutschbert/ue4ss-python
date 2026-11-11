@@ -1,19 +1,22 @@
-# Stub generation: input format decision
+# Typings (`.pyi` stubs): where they come from
 
-Decision for `.pyi` stub generation (ticket wzm.1).
+There are two sets, and an editor uses both.
 
-## Options surveyed (RE-UE4SS 97adba0)
-| Source | Content | Fit |
-|---|---|---|
-| `.jmap` (`UE4SS/src/JMapGenerator`) | JSON reflection dump: classes, functions, script structs, enums, property offsets/sizes/flags, CDO values. Written to `<GameName>-<EngineVersion>-<sha>.jmap` in the UE4SS working dir; Ctrl+Numpad5, GUI Dumpers tab, or Lua `DumpJMAP()`. | **Chosen.** Machine readable, complete, and includes functions with params. |
-| `.usmap` (`USMapGenerator`) | Binary property mappings for unversioned properties | No functions; binary format. |
-| SDK generator (`SDKGenerator`, UHT-style headers, `JSONDumper`) | C++ headers / JSON of Blueprint classes only | Headers are the wrong shape; JSON covers Blueprint-generated classes only. |
-| Object dump (`ObjectDumper`) | Text list of objects | No type detail. |
-| In-process reflection from our own mod | Same data as jmap, via the Unreal wrapper | Possible later (ticket wzm.3), needs UEPseudo access and the mod running. |
+| Set | Folder | Contains | Made by |
+|---|---|---|---|
+| Base module | `python/typings/ue4ss` (committed) | The `ue4ss` module itself: `find_*`, hooks, keys, `UObject`, `Struct`, containers, errors. `ue4ss.engine` is declared with every name as `Any`. | `tools/gen_base_stubs.py`, from the off-game module `python/mock/ue4ss` |
+| Game typings | `stubs/` (git-ignored) | The same base module, built from the native module's docstrings, plus every engine and game class, struct and enum, optionally Blueprint classes | The running game: `ue4ss.engine.generate_stubs(folder)` (`docs/TYPED_API.md`) |
 
-## Decision
-`tools/gen_stubs.py` (stdlib only, runs in WSL or Windows) reads a `.jmap` file and writes `.pyi` stubs. The in-process `ue4ss.dump_stubs()` (wzm.3) is optional and only worth doing if jmap proves insufficient for 4.25 games.
+`pyrightconfig.json` names `stubs` as the `stubPath` and `python/typings` as an extra path. Pyright and Pylance look in the
+`stubPath` first, so once a game has written `stubs/`, those typings replace the committed ones; until then the base module
+still completes.
 
-## Open points
-- Whether the jmap dumper works on a UE 4.25 target is unverified; the generator code handles `Version::IsBelow(4, 25)`, so the format is version aware. Checked by the `[WIN]` stub ticket (wzm.4), which needs a real `.jmap` from the game.
-- The wzm.2 fixture is written from the public jmap schema (github.com/trumank/jmap), not from a real game dump.
+Both sets are written by the same code, `python/lib/ue4ss/basestubs.py`: a signature is read from the first line of a
+docstring (`name(args) -> result: text`); a Python function without such a line contributes its parameter names; a built-in
+without one gets `(*args, **kwargs)`.
+
+`tools/tests/test_gen_base_stubs.py` fails when the committed base typings differ from what the tool writes. After changing
+the API (and the off-game module with it) run `python3 -I tools/gen_base_stubs.py`.
+
+Limits of the committed set: parameter and return types are mostly `Any` (the off-game module is not annotated), and it
+describes the off-game module, which is kept equal to the native one by name and signature but is not the native one.

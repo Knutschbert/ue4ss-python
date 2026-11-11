@@ -145,7 +145,8 @@ inside the game's frame.
 
 ## 8. Editor completion and type checking (optional)
 
-The game can write typings for all of its classes, and scripts can then use typed imports:
+The base `ue4ss` module is typed out of the box when you open this repository in VS Code (`python/typings`). For engine
+and game classes, the game writes typings of all of its classes, and scripts can then use typed imports:
 
 ```python
 from ue4ss import engine
