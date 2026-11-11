@@ -1,0 +1,179 @@
+"""The base stub (ue4ss/__init__.pyi) made from the live ue4ss module: signatures are read from the first line of each docstring
+("name(args) -> result: text"), classes from their methods and bases, enums from their members. Used by ue4ss.engine.generate_stubs."""
+import ast
+import enum
+import inspect
+import re
+
+_SIGNATURE = re.compile(r"^\s*(?P<name>\w+)\((?P<args>.*?)\)\s*(?:->\s*(?P<ret>[\w\[\], |.]+?))?\s*[:;]")
+_FALLBACK = "(*args: Any, **kwargs: Any) -> Any"
+
+# Container and view classes are generic in the stubs; they are written by hand because the runtime classes cannot say it.
+_PRELUDE = '''from __future__ import annotations
+from enum import IntEnum, IntFlag
+from typing import Any, Callable, Generic, Iterator, TypeVar, overload
+
+T = TypeVar("T")
+K = TypeVar("K")
+V = TypeVar("V")
+
+class Array(Generic[T]):
+    def __len__(self) -> int: ...
+    def __iter__(self) -> Iterator[T]: ...
+    @overload
+    def __getitem__(self, index: int) -> T: ...
+    @overload
+    def __getitem__(self, index: slice) -> list[T]: ...
+    def __setitem__(self, index: Any, value: Any) -> None: ...
+    def __delitem__(self, index: Any) -> None: ...
+    def __contains__(self, item: object) -> bool: ...
+    def append(self, value: T) -> None: ...
+    def extend(self, iterable: Any) -> None: ...
+    def insert(self, index: int, value: T) -> None: ...
+    def pop(self, index: int = -1) -> T: ...
+    def clear(self) -> None: ...
+    def to_list(self) -> list[T]: ...
+    def is_valid(self) -> bool: ...
+
+class FixedArray(Generic[T]):
+    def __len__(self) -> int: ...
+    def __iter__(self) -> Iterator[T]: ...
+    @overload
+    def __getitem__(self, index: int) -> T: ...
+    @overload
+    def __getitem__(self, index: slice) -> list[T]: ...
+    def __setitem__(self, index: int, value: T) -> None: ...
+    def __contains__(self, item: object) -> bool: ...
+    def to_list(self) -> list[T]: ...
+    def is_valid(self) -> bool: ...
+
+class Map(Generic[K, V]):
+    def __len__(self) -> int: ...
+    def __iter__(self) -> Iterator[K]: ...
+    def __getitem__(self, key: K) -> V: ...
+    def __setitem__(self, key: K, value: V) -> None: ...
+    def __delitem__(self, key: K) -> None: ...
+    def __contains__(self, key: object) -> bool: ...
+    def get(self, key: K, default: Any = None) -> Any: ...
+    def keys(self) -> list[K]: ...
+    def values(self) -> list[V]: ...
+    def items(self) -> list[tuple[K, V]]: ...
+    def update(self, other: Any) -> None: ...
+    def pop(self, key: K, *default: Any) -> Any: ...
+    def clear(self) -> None: ...
+    def to_dict(self) -> dict[K, V]: ...
+    def is_valid(self) -> bool: ...
+
+class Set(Generic[T]):
+    def __len__(self) -> int: ...
+    def __iter__(self) -> Iterator[T]: ...
+    def __contains__(self, item: object) -> bool: ...
+    def add(self, item: T) -> None: ...
+    def discard(self, item: T) -> None: ...
+    def remove(self, item: T) -> None: ...
+    def update(self, items: Any) -> None: ...
+    def clear(self) -> None: ...
+    def to_list(self) -> list[T]: ...
+    def is_valid(self) -> bool: ...
+'''
+_HAND_WRITTEN = {"Array", "FixedArray", "Map", "Set"}
+
+
+_BUILTIN_TYPES = {"int", "str", "float", "bool", "list", "dict", "tuple", "set", "None", "Any", "object", "bytes", "type", "UEError"}
+
+
+def _clean_type(text, known):
+    """The annotation text if every name in it is known, else Any (docstring return types are free text)."""
+    names = set(re.findall(r"[A-Za-z_]\w*", text))
+    return text if names <= (known | _BUILTIN_TYPES | {"T", "K", "V"}) else "Any"
+
+
+def _def_line(indent, name, doc, method=False, known=frozenset()):
+    """One `def` from a docstring signature; `self` is added for methods whose signature does not name it."""
+    match = _SIGNATURE.match(doc or "")
+    if match and match.group("name") == name:
+        args = match.group("args").strip()
+        ret = _clean_type((match.group("ret") or "Any").strip(), known)
+        pieces = [a.strip() for a in args.split(",") if a.strip()] if args else []
+        cleaned = []
+        for piece in pieces:
+            if piece.startswith(("*", "/")) or "=" in piece or ":" in piece:
+                cleaned.append(piece if "=" not in piece or ":" in piece.split("=")[0] else piece.replace("=", ": Any = ", 1) if False else piece)
+            else:
+                cleaned.append(piece + ": Any")
+        # defaults written in the docstring (name=value) become `name: Any = ...`
+        cleaned = [re.sub(r"^(\w+)=.*$", r"\1: Any = ...", c) for c in cleaned]
+        signature = ", ".join((["self"] if method else []) + cleaned)
+        line = f"{indent}def {name}({signature}) -> {ret}: ..."
+        try:
+            ast.parse(line.strip() + "\n")
+            return line
+        except SyntaxError:
+            pass   # an odd docstring: fall through to the generic signature
+    return f"{indent}def {name}({'self, ' if method else ''}*args: Any, **kwargs: Any) -> Any: ..."
+
+
+def make_base_stub(module):
+    lines = ["# Generated by ue4ss.engine.generate_stubs from the live ue4ss module. Do not edit.", ""]
+    classes = [(n, o) for n, o in vars(module).items() if inspect.isclass(o) and not n.startswith("_") and n not in _HAND_WRITTEN]
+    functions = [(n, o) for n, o in vars(module).items() if callable(o) and not inspect.isclass(o) and not n.startswith("_") and n != "engine"]
+    constants = [n for n, o in vars(module).items() if not n.startswith("_") and not callable(o) and not inspect.ismodule(o)]
+    lines += _PRELUDE.splitlines() + [""]
+    emitted = set(_HAND_WRITTEN)
+    known = {n for n, _ in classes} | _HAND_WRITTEN
+
+    def emit(name, cls):
+        if name in emitted:
+            return
+        for base in cls.__bases__:
+            if base.__name__ in dict(classes):
+                emit(base.__name__, base)
+        emitted.add(name)
+        bases = [b.__name__ for b in cls.__bases__ if b is not object and (b.__name__ in dict(classes) or b.__name__ in ("IntEnum", "IntFlag", "Exception"))]
+        if issubclass(cls, enum.Enum):
+            base = "IntFlag" if issubclass(cls, enum.Flag) else "IntEnum"
+            lines.append(f"class {name}({base}):")
+            for member in cls:
+                lines.append(f"    {member.name} = {int(member.value)}")
+            lines.append("")
+            return
+        if name == "UObject":
+            # The wrapper methods live in UObjectBase, which the generated engine classes derive from (unknown attributes are errors there);
+            # a plain UObject, what find_* and static_find_object return, also allows any attribute.
+            lines.append("class UObjectBase(object):")
+        else:
+            lines.append(f"class {name}({', '.join(bases) if bases else 'object'}):")
+        body = 0
+        for member, value in vars(cls).items():
+            if member.startswith("_") or not callable(value) and not isinstance(value, (classmethod, staticmethod)):
+                continue
+            if inspect.isroutine(value) or inspect.ismethoddescriptor(value) or isinstance(value, (classmethod, staticmethod)):
+                lines.append(_def_line("    ", member, getattr(value, "__doc__", None), method=True, known=known))
+                body += 1
+        if name == "UObject":
+            lines.append("")
+            lines.append("class UObject(UObjectBase):")
+            lines.append("    def __getattr__(self, name: str) -> Any: ...")
+            lines.append("    def __setattr__(self, name: str, value: Any) -> None: ...")
+            body += 1
+        elif name == "Struct":
+            lines.append("    def __getattr__(self, name: str) -> Any: ...")
+            lines.append("    def __setattr__(self, name: str, value: Any) -> None: ...")
+            body += 2
+        if name == "FName":
+            lines.append("    comparison_index: int")
+            lines.append("    number: int")
+            body += 2
+        if not body:
+            lines.append("    ...")
+        lines.append("")
+
+    for name, cls in classes:
+        emit(name, cls)
+    for name, func in sorted(functions):
+        lines.append(_def_line("", name, getattr(func, "__doc__", None), known=known))
+    for name in sorted(constants):
+        lines.append(f"{name}: Any")
+    lines.append("def __getattr__(name: str) -> Any: ...")
+    lines.append("")
+    return "\n".join(lines)

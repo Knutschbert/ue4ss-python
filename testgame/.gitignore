@@ -1,0 +1,15 @@
+# UE4 build output: large and regenerated
+PyTestGame/Binaries/
+PyTestGame/Intermediate/
+PyTestGame/Saved/
+PyTestGame/DerivedDataCache/
+PyTestGame/Packaged/
+PyTestGame/.vs/
+*.sln
+*.suo
+testgame/progress.txt
+testgame/last_results.json
+testgame/last_run.txt
+testgame/runs/
+testgame/.hider-ready
+testgame/.hider-stop

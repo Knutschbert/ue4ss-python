@@ -1,0 +1,9 @@
+{
+  "python.analysis.stubPath": "stubs",
+  "python.analysis.extraPaths": ["python/lib", "python"],
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingModuleSource": "none"
+  },
+  "files.eol": "\n"
+}

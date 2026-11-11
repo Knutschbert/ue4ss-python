@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "copyName",
+      "type": "promptString",
+      "description": "Name for the kept copy in scripts/user (empty = keep no copy)",
+      "default": ""
+    }
+  ],
+  "tasks": [
+    {
+      "label": "Deploy current script to the game",
+      "detail": "Compile-check the open file, install it as main.py, keep a named copy. Press F5 in the game to reload.",
+      "type": "shell",
+      "command": "where py >nul 2>&1 & if errorlevel 1 (python \"${workspaceFolder}\\tools\\deploy_script.py\" \"${file}\" --name \"${input:copyName}\") else (py -3 \"${workspaceFolder}\\tools\\deploy_script.py\" \"${file}\" --name \"${input:copyName}\")",
+      "options": {
+        "shell": { "executable": "cmd.exe", "args": ["/d", "/c"] }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}

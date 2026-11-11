@@ -1,0 +1,7 @@
+file(GLOB PYUE_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*_test.cpp")
+foreach(src ${PYUE_TEST_SOURCES})
+    get_filename_component(name ${src} NAME_WE)
+    add_executable(${name} ${src})
+    target_link_libraries(${name} PRIVATE pyue_core)
+    add_test(NAME ${name} COMMAND ${name})
+endforeach()

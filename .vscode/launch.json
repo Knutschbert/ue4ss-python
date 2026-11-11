@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Deploy current file to the game",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/deploy_script.py",
+      "args": ["${file}"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Deploy current file under a name",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/deploy_script.py",
+      "args": ["${file}", "--name", "${input:copyName}"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ],
+  "inputs": [
+    {
+      "id": "copyName",
+      "type": "promptString",
+      "description": "Name for the kept copy in scripts/user (empty = keep no copy)",
+      "default": ""
+    }
+  ]
+}

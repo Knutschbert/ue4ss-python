@@ -1,0 +1,13 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "",
+	"Category": "",
+	"Description": "Dedicated test game for the Python scripting mod: carries every property kind the bindings handle, with populated data.",
+	"Modules": [
+		{
+			"Name": "PyTestGame",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
