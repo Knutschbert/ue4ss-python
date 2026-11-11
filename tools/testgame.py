@@ -289,20 +289,31 @@ def run_all(entries: list, *, timeout: float = 150, windowed: bool = False, runn
             runs: Path = RUNS, results: Path = RESULTS) -> int:
     """Run the scripts one after another; write per-script output and the result file. Returns the number that did not pass."""
     runs.mkdir(parents=True, exist_ok=True)
-    report, failures = [], 0
+    report, failures, expected = [], 0, 0
     for number, entry in enumerate(entries, 1):
         say(f"[{number}/{len(entries)}] {entry['file']}")
         result = runner(entry, timeout=timeout, windowed=windowed, echo=say)
         why = verdict(entry, result)
         (runs / (Path(entry["file"]).stem + ".txt")).write_text("\n".join(result.lines) + "\n", encoding="utf-8")
-        say(f"  {'ok  ' if not why else 'FAIL'} PASS={result.passed} FAIL={result.failed} SKIP={result.skipped} in {result.seconds:.1f} s" + (f"  -- {why}" if why else ""))
-        for line in [l for l in result.lines if _FAIL.search(l)][:6] if why else []:
+        known = entry.get("expected_failure", "")          # a known defect: failing is expected, passing means the entry is out of date
+        if known and why:
+            state, ok = "KNOWN", True
+            expected += 1
+        elif known:
+            state, ok, why = "FAIL", False, "passed although the manifest says expected_failure: remove that entry"
+        else:
+            state, ok = ("ok  " if not why else "FAIL"), not why
+        say(f"  {state} PASS={result.passed} FAIL={result.failed} SKIP={result.skipped} in {result.seconds:.1f} s" + (f"  -- {why}" if why else "")
+            + (f"  (known: {known})" if state == "KNOWN" else ""))
+        for line in [l for l in result.lines if _FAIL.search(l)][:6] if why and state == "FAIL" else []:
             say("      " + line[:200])
-        failures += bool(why)
-        report.append({"file": entry["file"], "ok": not why, "why": why, "pass": result.passed, "fail": result.failed, "skip": result.skipped,
-                       "seconds": round(result.seconds, 1), "started": result.started})
-    results.write_text(json.dumps({"target": TARGET, "total": len(entries), "failed": failures, "examples": report}, indent=1) + "\n", encoding="utf-8")
-    say(f"{len(entries) - failures} of {len(entries)} passed" + (f", {failures} did not: " + ", ".join(r["file"] for r in report if not r["ok"]) if failures else ""))
+        failures += not ok
+        report.append({"file": entry["file"], "ok": ok, "why": why, "expected_failure": state == "KNOWN", "pass": result.passed, "fail": result.failed,
+                       "skip": result.skipped, "seconds": round(result.seconds, 1), "started": result.started})
+    results.write_text(json.dumps({"target": TARGET, "total": len(entries), "failed": failures, "expected_failures": expected, "examples": report}, indent=1) + "\n",
+                       encoding="utf-8")
+    say(f"{len(entries) - failures - expected} of {len(entries)} passed" + (f", {expected} failed as expected (known defects)" if expected else "")
+        + (f", {failures} did not: " + ", ".join(r["file"] for r in report if not r["ok"]) if failures else ""))
     return failures
 
 

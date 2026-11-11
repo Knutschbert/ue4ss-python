@@ -187,5 +187,28 @@ class ManifestAndReportTest(unittest.TestCase):
             self.assertIn("1 of 2 passed, 1 did not: b_main.py", said[-1])
 
 
+    def test_an_expected_failure_does_not_fail_the_pass_but_an_unexpected_pass_does(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            entries = [{"file": "known_main.py", "marker": "done", "expected_failure": "a known defect"},
+                       {"file": "fixed_main.py", "marker": "done", "expected_failure": "was a defect once"},
+                       {"file": "fine_main.py", "marker": "done"}]
+
+            def runner(entry, **kwargs):
+                bad = entry["file"] == "known_main.py"
+                return testgame.RunResult(entry["file"], started=True, finished=True, passed=0 if bad else 1, failed=1 if bad else 0, lines=["FAIL x", "done"] if bad else ["PASS x", "done"])
+
+            said = []
+            failures = testgame.run_all(entries, runner=runner, say=said.append, runs=base / "runs", results=base / "results.json")
+            self.assertEqual(failures, 1)                                          # only the one that passed unexpectedly
+            report = json.loads((base / "results.json").read_text())
+            self.assertEqual(report["expected_failures"], 1)
+            by_file = {e["file"]: e for e in report["examples"]}
+            self.assertTrue(by_file["known_main.py"]["ok"] and by_file["known_main.py"]["expected_failure"])
+            self.assertFalse(by_file["fixed_main.py"]["ok"])
+            self.assertIn("remove that entry", by_file["fixed_main.py"]["why"])
+            self.assertIn("1 of 3 passed, 1 failed as expected (known defects), 1 did not: fixed_main.py", said[-1])
+
+
 if __name__ == "__main__":
     unittest.main()

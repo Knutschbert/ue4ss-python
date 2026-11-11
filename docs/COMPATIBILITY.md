@@ -16,7 +16,7 @@ supported; `LessEqual421` is untried.
 
 | Engine | Game | What was checked |
 |---|---|---|
-| UE 4.25 | PyTestGame, the test project in this repository ([TESTGAME.md](TESTGAME.md)) | The in-game test scripts in [`python/examples`](../python/examples) |
+| UE 4.25 | PyTestGame, the test project in this repository ([TESTGAME.md](TESTGAME.md)) | The in-game test scripts in [`python/examples`](../python/examples): 54 of 55 pass (2026-11-11); `bind_event_main.py` fails on a known defect |
 | UE 4.25 (modified) | Chivalry 2 | The in-game test scripts that do not need the test project's own classes; most measurements in the design records |
 
 Other engine versions (4.26, 4.27, 5.x) are untried. What decides whether a game works is first of all whether UE4SS

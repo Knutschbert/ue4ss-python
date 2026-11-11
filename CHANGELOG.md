@@ -20,4 +20,6 @@ First version in this repository.
   reloading.
 - `ue4ss.engine`: engine classes as Python types and generated `.pyi` typings.
 - The off-game `ue4ss` module for tests.
+
+Known defects: `bind_event` does not deliver broadcasts of delegates declared in C++ (Blueprint event dispatchers work).
 - Build, package and release tooling; the UE 4.25 test project.

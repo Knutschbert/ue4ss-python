@@ -297,6 +297,10 @@ ue4ss.unbind_event(event_id)
   callback is discarded.
 * Returns the binding id; `unbind_event(id)` stops delivery for that callback. Several callbacks on the same delegate each
   run, once per broadcast.
+* **Known limit: delegates declared in C++ are not delivered.** Binding works and callbacks arrive for event dispatchers
+  declared in a Blueprint (verified in a game). For a multicast delegate declared in native code the binding is accepted
+  but the callback never runs; the in-game test `bind_event_main.py` fails on this and is marked as an expected failure.
+  To react to such a delegate, hook a function it calls. Background: `docs/BLUEPRINT_HOOKS.md`.
 * First supported for **multicast** delegate properties only (the common Event Dispatcher). Single-cast and sparse delegates
   are not bindable yet; a single-cast binding would be a replace, not an append, and is future work. Reading a bound
   multicast delegate still lists its `(object, FName)` bindings as before.

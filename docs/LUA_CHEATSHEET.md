@@ -46,7 +46,7 @@ right column the counterpart in this mod. Every Python name links to its section
 | `Context:get()` | `context` | Already the object |
 | setting a return value in a post hook | `return value` from `post(context, params, result)` | |
 | (no direct counterpart) | `ue4ss.register_replacement(path, fn)` | Run Python instead of the function. [Replacing a function](API.md#replacing-a-function) |
-| (no direct counterpart) | `ue4ss.bind_event(obj, "OnSomething", fn)` | Bind to an Event Dispatcher of one object. [Binding](API.md#binding-to-a-multicast-delegate-event-dispatcher) |
+| (no direct counterpart) | `ue4ss.bind_event(obj, "OnSomething", fn)` | Bind to an Event Dispatcher of one object (Blueprint-declared ones; see the known limit there). [Binding](API.md#binding-to-a-multicast-delegate-event-dispatcher) |
 | `NotifyOnNewObject(classPath, fn)` | `ue4ss.notify_on_new_object(class_path, fn)` | Delivered at a later tick, when the object is fully built. [New objects](API.md#new-objects) |
 
 ## Keys, threads, timing

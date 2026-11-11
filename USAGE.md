@@ -179,7 +179,8 @@ ids = ue4ss.register_hook("/Script/Engine.Actor:K2_SetActorLocation", before)
 `params` is only valid inside the callback; keep values with `params.copy()`. Reference:
 [API, Hooks](docs/API.md#hooks); for functions defined in Blueprints see [docs/BLUEPRINT_HOOKS.md](docs/BLUEPRINT_HOOKS.md).
 
-Bind to an Event Dispatcher (multicast delegate) of one object:
+Bind to an Event Dispatcher (multicast delegate) of one object. This works for dispatchers declared in a Blueprint; for
+delegates declared in C++ the callback does not arrive yet ([known limit](docs/API.md#binding-to-a-multicast-delegate-event-dispatcher)):
 
 ```python
 event_id = ue4ss.bind_event(door, "OnOpened", lambda context, params: print("opened"))

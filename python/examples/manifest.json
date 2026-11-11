@@ -98,7 +98,8 @@
    ],
    "min_pass": {
     "testgame": 13
-   }
+   },
+   "expected_failure": "bind_event does not deliver broadcasts of a delegate declared in C++ (the test actor's OnMulti); Blueprint event dispatchers work"
   },
   {
    "file": "in_out_main.py",

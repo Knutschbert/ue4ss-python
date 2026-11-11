@@ -65,6 +65,7 @@ one after another, because scripts leave hooks and subscriptions behind. The `ma
 | `startup` | The script must be `main.py` itself. The others are started by a small wrapper once the three test actors exist, because under load the first engine tick can come before the game mode has spawned them. |
 | `env` | Environment variables for the game process. |
 | `expect_exit_within` | The script quits the game; the process must be gone within this many seconds. |
+| `expected_failure` | The reason a script fails because of a known defect. It is reported as `KNOWN` and does not fail the pass; when it passes after all, the pass fails until the entry is removed. |
 
 A script passed when its marker is in the log, there is no `FAIL` line (and no traceback, unless tolerated) and the `PASS`
 count reaches the floor. A check a script cannot run prints `name: SKIP (reason)`; skips are counted, not failures. A
