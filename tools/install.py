@@ -100,6 +100,8 @@ class Installer:
 
     # --- steps ---
     def check_not_running(self, game_exe: str) -> None:
+        if self.dry_run:
+            return
         if self.running([game_exe]):
             raise InstallError(f"{game_exe} is running; close the game first (its DLLs cannot be replaced while it runs)")
 

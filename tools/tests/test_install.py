@@ -166,6 +166,10 @@ class InstallTest(unittest.TestCase):
         self.assertEqual((self.built, self.packaged), ([], []))
         self.assertIn("dry run: nothing was changed", self.said)
 
+    def test_a_dry_run_does_not_need_the_windows_process_lister(self):
+        self.installer(dry_run=True, running=lambda names: self.fail("the dry run must not inspect processes")).run(
+            self.win64, "MyGame-Win64-Shipping.exe")
+
     def test_skip_build_without_built_files_says_what_to_do(self):
         (self.root / "build" / "Game__Shipping__Win64" / "bin" / "UE4SS.dll").unlink()
         with self.assertRaisesRegex(install.InstallError, "build first"):
