@@ -1,10 +1,25 @@
 # Getting started
 
-This walks a new user from an installed mod to working scripts. The full reference is `docs/API.md`.
+This walks a new user from an installed mod to working scripts. The full reference is [docs/API.md](docs/API.md).
+
+**Contents**
+
+1. [Check the install](#1-check-the-install)
+2. [How scripts run](#2-how-scripts-run)
+3. [Reload without restarting the game](#3-reload-without-restarting-the-game)
+4. [Find objects and read properties](#4-find-objects-and-read-properties)
+5. [Find out what your game has](#5-find-out-what-your-game-has)
+6. [Call functions](#6-call-functions)
+7. [React to the game](#7-react-to-the-game)
+8. [The game thread](#8-the-game-thread)
+9. [Editor completion and type checking](#9-editor-completion-and-type-checking-optional)
+10. [Try scripts without the game](#10-try-scripts-without-the-game)
 
 ## 1. Check the install
 
-After installing (see `README.md`), the mod folder looks like this:
+The mod is not installed yet? Build and install it first:
+[README, Build and install from source](README.md#build-and-install-from-source). Afterwards the mod folder looks like
+this:
 
 ```
 <Game>\Binaries\Win64\Mods\PythonScripting\
@@ -24,11 +39,15 @@ print("hello from Python, generation", ue4ss.script_generation())
 
 Open `UE4SS.log` (next to the game's executable) and search for `[Python]`. You should see the line. If not:
 
-- No `PythonScripting` lines at all: the mod is not enabled. Check `Mods\mods.txt` for `PythonScripting : 1`.
-- The game crashes at start: the installed `UE4SS.dll` is not the build this mod was made for (see README, Requirements).
-- A traceback: Python errors are printed to the same log with the `[Python]` prefix.
+| What you see | Cause | Fix |
+|---|---|---|
+| No `PythonScripting` lines at all | The mod is not enabled, or UE4SS itself does not load | Check that `enabled.txt` is in the mod folder or `Mods\mods.txt` has `PythonScripting : 1`; check that `UE4SS.log` is written at all ([UE4SS installation guide](https://docs.ue4ss.com/dev/installation-guide.html)) |
+| The game crashes at start | The installed `UE4SS.dll` is not the build this mod was made with | Install the `UE4SS.dll` and `dwmapi.dll` from the same build as `main.dll` ([README, Requirements](README.md#requirements)) |
+| `no main.py in ..., nothing to run` | The script is missing or in the wrong folder | It must be `python_scripts\main.py` inside the mod folder |
+| A Python traceback | An error in the script | Tracebacks are printed to the same log with the `[Python]` prefix |
 
-The folder must be called `python_scripts`, not `scripts`: UE4SS treats a mod with a `scripts` folder as a Lua mod.
+> [!IMPORTANT]
+> The folder must be called `python_scripts`, not `scripts`: UE4SS treats a mod with a `scripts` folder as a Lua mod.
 
 ## 2. How scripts run
 
@@ -52,6 +71,8 @@ The folder must be called `python_scripts`, not `scripts`: UE4SS treats a mod wi
 - **`main.py` ends, your registrations stay.** Hooks, key bindings and delayed tasks keep working after the script
   finished. A script is usually: look things up, register callbacks, return.
 
+Reference: [API, Running scripts](docs/API.md#running-scripts).
+
 ## 3. Reload without restarting the game
 
 Add one line and you can edit, save and press a key:
@@ -66,6 +87,9 @@ ue4ss.register_key_down(Key.F5, ue4ss.reload)
 A reload removes every hook, key binding and pending task, forgets the modules imported from `python_scripts` (so
 edited files are read again) and runs `main.py` again. Threads you started yourself are not stopped: let them check
 `ue4ss.script_generation()` and return when it changed.
+
+Reference: [API, Reloading scripts](docs/API.md#reloading-scripts). To install the file you are editing with one key
+press from VS Code, see [docs/VSCODE.md](docs/VSCODE.md#the-edit---deploy---try-loop).
 
 ## 4. Find objects and read properties
 
@@ -84,11 +108,41 @@ if controller is not None:
 
 - Class names are the engine's names without the C++ prefix: `Actor`, not `AActor`.
 - `obj.Name` reads a reflected property, `obj.Name = value` writes it. Numbers, strings, enums, structs, arrays, maps
-  and sets convert to Python values (table in `docs/API.md`, Properties).
+  and sets convert to Python values (table in [API, Properties](docs/API.md#properties)).
 - An object you hold can be destroyed by the game. Using it then raises `ue4ss.InvalidObjectError` instead of
-  crashing; `obj.is_valid()` tells in advance.
+  crashing; `obj.is_valid()` tells in advance ([docs/LIFETIME.md](docs/LIFETIME.md)).
 
-## 5. Call functions
+Reference: [API, Finding objects](docs/API.md#finding-objects), [Objects](docs/API.md#objects).
+
+## 5. Find out what your game has
+
+Every game has its own classes, properties and functions. Three ways to find them, from quick to complete:
+
+**Ask an object.** Every object can list what it has:
+
+```python
+pawn = controller.Pawn
+cls = pawn.get_class()
+print(cls.get_full_name())                     # the class and where it lives
+print(cls.get_property_names()[:40])           # property names, parents included
+print(cls.get_function_names()[:40])           # callable functions
+print(cls.find_function("K2_SetActorLocation").get_params())   # parameter names and types
+```
+
+**List what is loaded.** `ue4ss.find_all_of("Class")` returns every native class, `find_all_of("BlueprintGeneratedClass")`
+the Blueprint classes loaded right now, and `ue4ss.find_objects(name="...")` finds objects by name.
+
+**Generate typings and read them.** The game writes one `.pyi` file per package with every class, property and function
+signature; it is the most complete list, readable and searchable in any editor, and it also gives you completion
+([section 9](#9-editor-completion-and-type-checking-optional)).
+
+> [!TIP]
+> UE4SS brings its own inspection tools, which work next to this mod: the
+> [Live View](https://docs.ue4ss.com/dev/feature-overview/live-view.html) window to browse live objects and their
+> values, and the [dumpers](https://docs.ue4ss.com/dev/feature-overview/dumpers.html) that write C++ headers of all
+> classes.
+
+## 6. Call functions
 
 Any function the engine reflects (Blueprint-callable native functions and Blueprint functions) can be called:
 
@@ -102,7 +156,9 @@ pawn.SetActorHiddenInGame(True)
 
 Arguments go by position or by name. A struct argument can be a dict of its fields.
 
-## 6. React to the game
+Reference: [API, Calling functions](docs/API.md#calling-functions).
+
+## 7. React to the game
 
 Hook a function (native or Blueprint):
 
@@ -114,7 +170,8 @@ ids = ue4ss.register_hook("/Script/Engine.Actor:K2_SetActorLocation", before)
 # later: ue4ss.unregister_hook(ids)
 ```
 
-`params` is only valid inside the callback; keep values with `params.copy()`.
+`params` is only valid inside the callback; keep values with `params.copy()`. Reference:
+[API, Hooks](docs/API.md#hooks); for functions defined in Blueprints see [docs/BLUEPRINT_HOOKS.md](docs/BLUEPRINT_HOOKS.md).
 
 Bind to an Event Dispatcher (multicast delegate) of one object:
 
@@ -129,7 +186,10 @@ ue4ss.notify_on_new_object("/Script/Engine.Actor", lambda obj: print("new", obj.
 ue4ss.register_key_down(Key.F6, lambda: print("F6 pressed"))
 ```
 
-## 7. The game thread
+Reference: [event dispatchers](docs/API.md#binding-to-a-multicast-delegate-event-dispatcher),
+[new objects](docs/API.md#new-objects), [key bindings](docs/API.md#key-bindings).
+
+## 8. The game thread
 
 Game objects may only be touched on the game thread. `main.py`, hooks, key callbacks and delayed tasks already run
 there. From a thread you started yourself, hand the work over:
@@ -143,10 +203,13 @@ future = ue4ss.call_in_game_thread(lambda: controller.get_full_name())          
 Touching an object from the wrong thread raises `ue4ss.UEError`; it does not crash. Keep callbacks short: they run
 inside the game's frame.
 
-## 8. Editor completion and type checking (optional)
+Reference: [API, The game thread](docs/API.md#the-game-thread); background in [docs/THREADING.md](docs/THREADING.md).
 
-The base `ue4ss` module is typed out of the box when you open this repository in VS Code (`python/typings`). For engine
-and game classes, the game writes typings of all of its classes, and scripts can then use typed imports:
+## 9. Editor completion and type checking (optional)
+
+The base `ue4ss` module is typed out of the box when you open this repository in VS Code
+([`python/typings`](python/typings)). For engine and game classes, the game writes typings of all of its classes, and
+scripts can then use typed imports:
 
 ```python
 from ue4ss import engine
@@ -159,27 +222,30 @@ from ue4ss.engine import PlayerController, Vector
 controller = PlayerController.find_first()
 ```
 
-`docs/VSCODE.md` shows the VS Code setup, `docs/TYPED_API.md` the details.
+[docs/VSCODE.md](docs/VSCODE.md) shows the VS Code setup, [docs/TYPED_API.md](docs/TYPED_API.md) the details and
+options (Blueprint classes, one package only), [docs/STUBS.md](docs/STUBS.md) which typings exist.
 
-## 9. Try scripts without the game
+## 10. Try scripts without the game
 
-`python/mock` in this repository is a pure-Python `ue4ss` with the same functions and a fake object model. It is meant
-for unit tests and for checking that a script imports and runs:
+[`python/mock`](python/mock) in this repository is a pure-Python `ue4ss` with the same functions and a fake object model.
+It is meant for unit tests and for checking that a script imports and runs:
 
 ```
 PYTHONPATH=python/mock python3 my_script.py
 ```
 
-`python/tests` shows how to build fake objects for a test.
+[`python/tests`](python/tests) shows how to build fake objects for a test.
 
 ## Where to go next
 
 | Topic | File |
 |---|---|
-| Every function, type conversion and error | `docs/API.md` |
-| Small working scripts for each feature | `python/examples/` |
-| Hooking Blueprint functions, what works and what does not | `docs/BLUEPRINT_HOOKS.md` |
-| Threads | `docs/THREADING.md` |
-| Object lifetime and stale references | `docs/LIFETIME.md` |
-| What happens when a call faults | `docs/FAULTS.md` |
-| Building the mod yourself | `docs/BUILDING.md` |
+| Every function, type conversion and error | [docs/API.md](docs/API.md) |
+| Small working scripts for each feature | [python/examples/](python/examples) |
+| Engine classes as Python types, generating typings | [docs/TYPED_API.md](docs/TYPED_API.md) |
+| Editor setup | [docs/VSCODE.md](docs/VSCODE.md) |
+| Hooking Blueprint functions, what works and what does not | [docs/BLUEPRINT_HOOKS.md](docs/BLUEPRINT_HOOKS.md) |
+| Threads | [docs/THREADING.md](docs/THREADING.md) |
+| Object lifetime and stale references | [docs/LIFETIME.md](docs/LIFETIME.md) |
+| What happens when a call faults | [docs/FAULTS.md](docs/FAULTS.md) |
+| Building the mod, another UE4SS version | [docs/BUILDING.md](docs/BUILDING.md) |

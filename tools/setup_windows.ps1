@@ -6,7 +6,8 @@
   Checks the toolchain (git, CMake >= 3.22, MSVC with the C++ workload, Rust >= 1.73),
   downloads the pinned CPython (embeddable runtime + NuGet package for headers and import
   libraries) with SHA-256 verification into third_party/python, and clones RE-UE4SS with
-  submodules next to this repository. Does not build anything.
+  submodules next to this repository, at the commit this mod is built and tested against.
+  Does not build anything.
 
   Not run from WSL. Run from a normal PowerShell prompt.
 
@@ -17,12 +18,19 @@
   Local checkout of the private Re-UE4SS/UEPseudo repository. If deps\first\Unreal is empty
   after the clone, it is populated from here and checked out at the commit RE-UE4SS pins.
 
+.PARAMETER Ue4ssRef
+  The RE-UE4SS commit, tag or branch to check out. Default: the commit this mod is tested against.
+  Pass another one to build for a different UE4SS version (the mod's source may then need changes),
+  or an empty string to leave the checkout as it is. An existing checkout with local changes is
+  never switched: the script warns and keeps it.
+
 .PARAMETER SkipUe4ss
   Skip the RE-UE4SS clone/update step.
 #>
 [CmdletBinding()]
 param(
     [string]$Ue4ssDir = '',
+    [string]$Ue4ssRef = '97adba01e9fcb3c208376581e54edb9ef466f233',
     [switch]$SkipUe4ss,
     [string]$UEPseudoDir = ''
 )
@@ -105,10 +113,32 @@ Write-Host "ok  CPython $PythonVersion in $pyRoot"
 # --- RE-UE4SS ---
 if (-not $SkipUe4ss) {
     if (-not (Test-Path (Join-Path $Ue4ssDir '.git'))) {
-        git clone --recurse-submodules $Ue4ssRepo $Ue4ssDir
-    } else {
-        git -C $Ue4ssDir submodule update --init --recursive
+        git clone $Ue4ssRepo $Ue4ssDir
+        if ($LASTEXITCODE) { throw "git clone of $Ue4ssRepo failed ($LASTEXITCODE)" }
     }
+    if ($Ue4ssRef) {
+        $wanted = (git -C $Ue4ssDir rev-parse --verify --quiet "$Ue4ssRef^{commit}")
+        if (-not $wanted) {
+            git -C $Ue4ssDir fetch origin
+            $wanted = (git -C $Ue4ssDir rev-parse --verify --quiet "$Ue4ssRef^{commit}")
+            if (-not $wanted) { $wanted = (git -C $Ue4ssDir rev-parse --verify --quiet "origin/$Ue4ssRef^{commit}") }
+        }
+        if (-not $wanted) { throw "RE-UE4SS has no commit, tag or branch '$Ue4ssRef'." }
+        $current = (git -C $Ue4ssDir rev-parse HEAD)
+        if ($current -ne $wanted) {
+            # local edits to tracked files (submodule checkouts that merely differ are not edits of this repository)
+            $dirty = (git -C $Ue4ssDir status --porcelain --untracked-files=no --ignore-submodules=all)
+            if ($dirty) {
+                Write-Warning "RE-UE4SS at $Ue4ssDir has local changes and is at $current, not at the requested $wanted. It is left as it is; commit or stash the changes and rerun, or pass -Ue4ssRef '' to keep the current commit."
+            } else {
+                git -C $Ue4ssDir checkout --detach $wanted
+                if ($LASTEXITCODE) { throw "git checkout of $wanted failed ($LASTEXITCODE)" }
+            }
+        }
+    }
+    Write-Host "ok  RE-UE4SS at $(git -C $Ue4ssDir rev-parse --short=8 HEAD)"
+    # no --remote: the submodules must stay at the commits this RE-UE4SS commit pins
+    git -C $Ue4ssDir submodule update --init --recursive
     $unrealDir = Join-Path $Ue4ssDir 'deps\first\Unreal'
     if ($UEPseudoDir -and -not (Test-Path (Join-Path $unrealDir 'include'))) {
         $pin = (git -C $Ue4ssDir ls-tree HEAD deps/first/Unreal).Split()[2]
@@ -121,4 +151,4 @@ if (-not $SkipUe4ss) {
     }
 }
 
-Write-Host "`nDone. Next: see docs/BUILDING.md (build UE4SS and the mod with the same <Target>__<Config>__Win64)."
+Write-Host "`nDone. Next: tools\build.ps1 -Target UE4SS, -Target proxy, then tools\build.ps1 (docs/BUILDING.md)."
