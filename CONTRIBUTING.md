@@ -12,7 +12,8 @@ python3 -m pytest python/tests tools -q      # must pass
 tools/run_host_tests.sh                      # when core/ changed
 ```
 
-Both run on every push ([workflow](.github/workflows/tests.yml)). Changes to `src/` cannot be tested there: say in the pull
+Both run on every push ([workflow](.github/workflows/tests.yml)). Changes to `src/` cannot be tested there. Run the in-game
+test scripts in the test game (`python tools\testgame.py all`, see [docs/TESTGAME.md](docs/TESTGAME.md)) or say in the pull
 request what you built and ran, and with which game.
 
 ## Where code goes

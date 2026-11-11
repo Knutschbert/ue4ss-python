@@ -20,9 +20,24 @@
       "detail": "Compile-check the open file, install it as main.py, keep a named copy. Reload it in the game with the key bound to ue4ss.reload.",
       "type": "shell",
       "command": "where py >nul 2>&1 & if errorlevel 1 (python \"${workspaceFolder}\\tools\\deploy_script.py\" \"${file}\" --name \"${input:copyName}\") else (py -3 \"${workspaceFolder}\\tools\\deploy_script.py\" \"${file}\" --name \"${input:copyName}\")",
-      "options": { "shell": { "executable": "cmd.exe", "args": ["/d", "/c"] } },
-      "group": { "kind": "build", "isDefault": true },
-      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "options": {
+        "shell": {
+          "executable": "cmd.exe",
+          "args": [
+            "/d",
+            "/c"
+          ]
+        }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
@@ -30,8 +45,16 @@
       "detail": "Build UE4SS, the proxy and the mod, package, and install into the game you name. The game is remembered in local.config.json.",
       "type": "process",
       "command": "python",
-      "args": ["${workspaceFolder}/tools/install.py", "--game", "${input:gamePath}"],
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "args": [
+        "${workspaceFolder}/tools/install.py",
+        "--game",
+        "${input:gamePath}"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
@@ -39,53 +62,122 @@
       "detail": "Build everything, package, and install into the remembered game.",
       "type": "process",
       "command": "python",
-      "args": ["${workspaceFolder}/tools/install.py"],
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
-      "problemMatcher": ["$msCompile"]
+      "args": [
+        "${workspaceFolder}/tools/install.py"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": [
+        "$msCompile"
+      ]
     },
     {
       "label": "Install: package and install without building",
       "detail": "For changes to Python files only (python/lib, your scripts).",
       "type": "process",
       "command": "python",
-      "args": ["${workspaceFolder}/tools/install.py", "--skip-build"],
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "args": [
+        "${workspaceFolder}/tools/install.py",
+        "--skip-build"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
       "label": "Build: mod (main.dll)",
       "type": "process",
       "command": "powershell",
-      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/build.ps1"],
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tools/build.ps1"
+      ],
       "group": "build",
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
-      "problemMatcher": ["$msCompile"]
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": [
+        "$msCompile"
+      ]
     },
     {
       "label": "Build: UE4SS.dll",
       "type": "process",
       "command": "powershell",
-      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/build.ps1", "-Target", "UE4SS"],
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tools/build.ps1",
+        "-Target",
+        "UE4SS"
+      ],
       "group": "build",
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
-      "problemMatcher": ["$msCompile"]
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": [
+        "$msCompile"
+      ]
     },
     {
       "label": "Build: proxy (dwmapi.dll)",
       "type": "process",
       "command": "powershell",
-      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/build.ps1", "-Target", "proxy"],
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tools/build.ps1",
+        "-Target",
+        "proxy"
+      ],
       "group": "build",
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
-      "problemMatcher": ["$msCompile"]
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": [
+        "$msCompile"
+      ]
     },
     {
       "label": "Package the mod (dist/PythonScripting)",
       "type": "process",
       "command": "python",
-      "args": ["${workspaceFolder}/tools/package_mod.py", "--main-dll", "build/src/main.dll", "--runtime-dir", "third_party/python/runtime", "--out-dir", "dist"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "args": [
+        "${workspaceFolder}/tools/package_mod.py",
+        "--main-dll",
+        "build/src/main.dll",
+        "--runtime-dir",
+        "third_party/python/runtime",
+        "--out-dir",
+        "dist"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
@@ -93,8 +185,13 @@
       "detail": "Start the remembered game, unless it already runs.",
       "type": "process",
       "command": "python",
-      "args": ["${workspaceFolder}/tools/start_game.py"],
-      "presentation": { "reveal": "always", "panel": "shared" },
+      "args": [
+        "${workspaceFolder}/tools/start_game.py"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
       "problemMatcher": []
     },
     {
@@ -102,19 +199,40 @@
       "detail": "Shows the [Python] lines of the game's UE4SS.log as they appear. Stop with Ctrl+C.",
       "type": "process",
       "command": "python",
-      "args": ["${workspaceFolder}/tools/follow_log.py"],
+      "args": [
+        "${workspaceFolder}/tools/follow_log.py"
+      ],
       "isBackground": true,
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
       "label": "Test: Python tests",
       "type": "process",
       "command": "python",
-      "args": ["-m", "pytest", "python/tests", "tools", "-q"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "group": { "kind": "test", "isDefault": true },
-      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "args": [
+        "-m",
+        "pytest",
+        "python/tests",
+        "tools",
+        "-q"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
       "problemMatcher": []
     },
     {
@@ -122,19 +240,54 @@
       "detail": "Needs WSL with clang++; on Linux run tools/run_host_tests.sh directly.",
       "type": "process",
       "command": "wsl.exe",
-      "args": ["bash", "tools/run_host_tests.sh"],
-      "options": { "cwd": "${workspaceFolder}" },
+      "args": [
+        "bash",
+        "tools/run_host_tests.sh"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "group": "test",
-      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
-      "problemMatcher": ["$gcc"]
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "Test: in-game tests in the test game",
+      "detail": "Runs every test script of python/examples in the staged test game (python tools/testgame.py install first).",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "${workspaceFolder}/tools/testgame.py",
+        "all"
+      ],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
     },
     {
       "label": "Typings: regenerate the shipped base typings",
       "detail": "Rewrites python/typings/ue4ss from the off-game module (after an API change).",
       "type": "process",
       "command": "python",
-      "args": ["-I", "${workspaceFolder}/tools/gen_base_stubs.py"],
-      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "args": [
+        "-I",
+        "${workspaceFolder}/tools/gen_base_stubs.py"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
       "problemMatcher": []
     }
   ]

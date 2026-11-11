@@ -62,6 +62,7 @@ says whether the game is running.
 | Game: follow the Python output | The `[Python]` lines of `UE4SS.log`, live |
 | Test: Python tests | `pytest` over `python/tests` and `tools` |
 | Test: C++ host tests of core/ (through WSL) | Needs WSL with clang++ |
+| Test: in-game tests in the test game | Every test script in the staged test game ([TESTGAME.md](TESTGAME.md)) |
 | Typings: regenerate the shipped base typings | After an API change ([STUBS.md](STUBS.md)) |
 
 The tasks call `python`; it must be on `PATH`. **Run and Debug** offers the profiles of

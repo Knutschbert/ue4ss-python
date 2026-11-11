@@ -185,7 +185,8 @@ python3 -m pytest python/tests tools -q      # Python tests (any OS)
 tools/run_host_tests.sh                      # C++ tests of core/ (clang++, any OS)
 ```
 
-Both run on every push ([workflow](.github/workflows/tests.yml)).
+Both run on every push ([workflow](.github/workflows/tests.yml)). The in-game test scripts run in the test game with
+`python tools\testgame.py all` ([docs/TESTGAME.md](docs/TESTGAME.md)).
 
 ## Layout
 
@@ -198,7 +199,7 @@ Both run on every push ([workflow](.github/workflows/tests.yml)).
 | [`python/typings/`](python/typings) | Shipped typings of the base `ue4ss` module ([docs/STUBS.md](docs/STUBS.md)) |
 | [`examples/`](examples) | Short example scripts for users, one topic each |
 | [`python/examples/`](python/examples) | In-game test scripts and probes of the mod itself (`manifest.json` lists them) |
-| [`testgame/`](testgame) | A small UE 4.25 project used as a test target ([docs/TESTGAME.md](docs/TESTGAME.md)) |
+| [`testgame/`](testgame) | A small UE 4.25 project used as a test target, with a runner for the in-game tests ([docs/TESTGAME.md](docs/TESTGAME.md)) |
 | [`tools/`](tools) | Build, package, release and typecheck scripts |
 | [`docs/`](docs) | Reference and design records, listed below |
 

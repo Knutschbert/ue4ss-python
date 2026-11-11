@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `tools/testgame.py`: install into the test game and run the in-game test scripts automatically.
 - `tools/install.py`: build, package and install into a game in one command; `tools/start_game.py`, `tools/follow_log.py`.
 - Packaging writes a starter `main.py` when there is none and keeps the scripts already in the installed folder.
 - Example scripts for users in `examples/`.

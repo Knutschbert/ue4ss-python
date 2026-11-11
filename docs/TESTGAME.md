@@ -29,29 +29,47 @@ The editor target (`PyTestGameEditor`, needed by the cook) builds with
 `Engine\Build\BatchFiles\Build.bat PyTestGameEditor Win64 Development -Project=<uproject> -2019`.
 
 ## Installing UE4SS and the mod into the staged game
-1. Copy `UE4SS.dll` and the proxy `dwmapi.dll` you built (see `docs/BUILDING.md`) next to the staged game's executable
-   (`<staged>\PyTestGame\Binaries\Win64`), together with `testgame/ue4ss/UE4SS-settings.ini` and `testgame/ue4ss/Mods`.
-2. Link `dist\PythonScripting` (the output of `tools/package_mod.py`) as `Binaries\Win64\Mods\PythonScripting` with
-   `mklink /J`. Use a link, not a copy: `package_testgame.ps1` removes the link before UAT cleans the staging folder and
-   refuses to continue when it finds a real folder there.
-3. Copy an example to `Mods\PythonScripting\python_scripts\main.py` and start the game.
+```
+python tools\testgame.py install            # add --build to build UE4SS, the proxy and the mod first
+```
+[`tools/testgame.py`](../tools/testgame.py) packages the mod, copies `UE4SS.dll` and the proxy `dwmapi.dll` from `build\`
+next to the staged executable, writes the test game's own UE4SS settings ([`testgame/ue4ss`](../testgame/ue4ss), UE4SS
+windows off) and links `Mods\PythonScripting` to `dist\PythonScripting`. Use a link, not a copy: `package_testgame.ps1`
+removes the link before UAT cleans the staging folder and refuses to continue when it finds a real folder there.
 
-## Running an example
-The game runs headless with `-nullrhi -nosound -nosplash -unattended`; the engine tick, the mod, `find_all_of` and every
-example work without an RHI, and start-up takes about 3 seconds. Output goes to `UE4SS.log` next to the executable with the
-prefix `[Python]`.
+## Running the test scripts
+```
+python tools\testgame.py run arrays_main                    # one script
+python tools\testgame.py all                                # every test script; exit code 0 only if all pass
+python tools\testgame.py all --only arrays_main,enums_main
+```
+Run it with a Windows Python (it starts and ends the game process). For each script the runner writes it as the mod's
+`main.py`, starts the game headless (`-nullrhi -nosound -nosplash -unattended`; start-up takes about 3 seconds), reads
+`UE4SS.log` until the script's finish marker appears, and ends exactly the process it started. One game process per script,
+one after another, because scripts leave hooks and subscriptions behind. The `main.py` that was there before is put back.
 
-`python/examples/manifest.json` lists every example: the text it prints when done (`marker`), the least number of `PASS`
-lines (`min_pass`, so a script that silently stops checking is noticed), and `tolerate_tracebacks` for examples that raise on
-purpose. Scripts that only print information for a person are `"kind": "probe"`. A check an example cannot run prints
-`name: SKIP (reason)`. An example passed when its marker is in the log, there is no `FAIL` line and the `PASS` count reaches
-the floor. Examples with `"startup": true` must be `main.py` themselves; the others expect the three test actors to exist,
-which under load can take a few engine ticks after start.
+| Result | Where |
+|---|---|
+| What each script printed | `testgame\runs\<name>.txt` |
+| Verdicts of the last pass | `testgame\last_results.json` |
 
-This repository does not contain an automated runner for the set; examples are run one per game process (they leave hooks
-and subscriptions behind).
+[`python/examples/manifest.json`](../python/examples/manifest.json) lists every script:
+
+| Field | Meaning |
+|---|---|
+| `marker` | The text the script prints when it is done. It must not occur in UE4SS's own log lines. |
+| `kind` | `test` is run; `probe` only prints information for a person and is not run. |
+| `min_pass` | The least number of `PASS` lines, so a script that silently stops checking is noticed. |
+| `tolerate_tracebacks` | For scripts that raise on purpose: a traceback neither ends the wait nor fails the script. |
+| `startup` | The script must be `main.py` itself. The others are started by a small wrapper once the three test actors exist, because under load the first engine tick can come before the game mode has spawned them. |
+| `env` | Environment variables for the game process. |
+| `expect_exit_within` | The script quits the game; the process must be gone within this many seconds. |
+
+A script passed when its marker is in the log, there is no `FAIL` line (and no traceback, unless tolerated) and the `PASS`
+count reaches the floor. A check a script cannot run prints `name: SKIP (reason)`; skips are counted, not failures. A
+timeout, a new crash dump (`crash_*.dmp`) or the game exiting before the marker is reported as the reason.
 
 ## Trying key bindings by hand (needs a window)
 Real key presses need a game window with the focus. Install `python/examples/keys_manual_main.py` as `main.py` and start the
-game without `-nullrhi`; click into its window and press F6, Ctrl+F6, Shift+F6, Ctrl+Shift+F6, then F7. Each press prints a
+game without `-nullrhi` (or `python tools\testgame.py run keys_manual_main --windowed --timeout 300`); click into its window and press F6, Ctrl+F6, Shift+F6, Ctrl+Shift+F6, then F7. Each press prints a
 `KEY ...` line to `UE4SS.log`; after F7 the F6 bindings are gone.

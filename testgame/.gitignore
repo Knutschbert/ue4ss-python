@@ -7,9 +7,9 @@ PyTestGame/Packaged/
 PyTestGame/.vs/
 *.sln
 *.suo
-testgame/progress.txt
-testgame/last_results.json
-testgame/last_run.txt
-testgame/runs/
-testgame/.hider-ready
-testgame/.hider-stop
+progress.txt
+last_results.json
+last_run.txt
+runs/
+.hider-ready
+.hider-stop
