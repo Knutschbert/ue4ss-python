@@ -76,6 +76,8 @@ class LiveClient:
                     raise LiveClientError(f"invalid response for {request['id']}: {error}") from error
                 if response["status"] != "ok":
                     detail = response.get("error") or response.get("stderr") or response["status"]
+                    if isinstance(detail, dict) and detail.get("message"):      # an exception in the game: its type, message and traceback as text
+                        detail = f"{detail.get('type', 'Error')}: {detail['message']}" + ("\n" + detail["traceback"].rstrip() if detail.get("traceback") else "")
                     raise LiveClientError(f"live operation {operation} failed: {detail}")
                 return response
             time.sleep(self.poll)

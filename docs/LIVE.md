@@ -140,5 +140,5 @@ own machine, and uninstall the bridge when you are done exploring ([SECURITY.md]
 
 ## Verified
 
-The bridge and the client are tested against a simulated engine tick, and the command-line tool was used against a real
-game (2026-11-11).
+The bridge and the client are tested against a simulated engine tick. The command-line tool and the MCP server were used
+against a real game (2026-11-11); what exactly is in [COMPATIBILITY.md](COMPATIBILITY.md#tools-of-this-repository).

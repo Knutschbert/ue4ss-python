@@ -29,6 +29,7 @@ Other engine versions (4.26, 4.27, 5.x) are untried; what to expect and how to a
 | [`tools/testgame.py`](../tools/testgame.py) | Full pass in the test game, 2026-11-11 |
 | [`tools/install.py`](../tools/install.py) | Installed into a game, 2026-11-11 |
 | [`tools/live.py`](../tools/live.py) | Used against a running game, 2026-11-11 |
+| [`tools/live_mcp.py`](../tools/live_mcp.py) | Driven over stdio against a running game, 2026-11-11: status, readiness (with and without a pawn), execute, an error, a job, wait, cleanup, sleep, reset. Untried: travel, reload, stop; being started by an MCP client from `.mcp.json` |
 | [`tools/make_release.py`](../tools/make_release.py) | `--build --with-ue4ss` produced a zip, 2026-11-11; installing that zip on another machine is untried |
 
 ## Toolchain
