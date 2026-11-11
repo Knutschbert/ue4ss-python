@@ -156,9 +156,12 @@ How a release is made and checked: [docs/RELEASING.md](docs/RELEASING.md).
 tools:
 
 ```
+python3 -m pip install -r requirements-dev.txt    # once: pytest, mypy
 python3 -m pytest python/tests tools -q      # Python tests (any OS)
 tools/run_host_tests.sh                      # C++ tests of core/ (clang++, any OS)
 ```
+
+Both run on every push ([workflow](.github/workflows/tests.yml)).
 
 ## Layout
 

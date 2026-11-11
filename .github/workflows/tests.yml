@@ -1,0 +1,24 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    # The Windows build of the mod is not run here: it needs the private UEPseudo repository.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test tools
+        run: python -m pip install -r requirements-dev.txt
+      - name: Python tests (off-game module, tools, shipped typings up to date)
+        run: python -m pytest python/tests tools -q
+      - name: C++ host tests of core/
+        run: CXX=clang++ bash tools/run_host_tests.sh

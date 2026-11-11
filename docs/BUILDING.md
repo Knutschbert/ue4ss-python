@@ -2,7 +2,8 @@
 
 The mod is a Windows x64 DLL built with MSVC, together with the UE4SS it runs in. The short version is in the
 [README](../README.md#build-and-install-from-source); this file has the details. Linux or WSL is only for editing, the
-Python tests and the host tests of `core/` ([`tools/run_host_tests.sh`](../tools/run_host_tests.sh)).
+Python tests (`python3 -m pip install -r requirements-dev.txt`, then `python3 -m pytest python/tests tools -q`) and the
+host tests of `core/` ([`tools/run_host_tests.sh`](../tools/run_host_tests.sh)).
 
 ## Prerequisites
 

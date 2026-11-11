@@ -1,0 +1,4 @@
+# Tools for running the tests and type checks of this repository (not needed to use the mod).
+#   python -m pip install -r requirements-dev.txt
+pytest>=7.4
+mypy>=1.8
