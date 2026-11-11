@@ -36,7 +36,8 @@ PlayerStart /Game/Maps/Example.Example:PersistentLevel.PlayerStart_0
 | `reset` | Forgets the variables of the session. |
 | `stop` | Ends the bridge in the game. |
 
-`--timeout SECONDS` (before the command) sets how long to wait for the game, default 30.
+`--timeout SECONDS` (before the command) sets how long to wait for the game, default 30. `--mod-dir <PythonScripting>`
+and `--session-dir <folder>` select a packaged mod and session outside this checkout.
 
 ## How it works
 
@@ -88,6 +89,13 @@ example) pick up when opened on this folder:
 - For other clients, register the same command with **this repository as the working directory**, in that client's own
   configuration.
 - The session folder is `dist/PythonScripting/live`; add `"env": {"PYUE_LIVE_DIR": "<folder>"}` for another one.
+- **Game package with this repository as a submodule:** put this in the game repository's `.mcp.json`, substituting the
+  Python command when needed:
+
+  ```json
+  {"mcpServers": {"ue4ss-live": {"command": "python", "args": ["ue4ss-python/tools/live_mcp.py"], "env": {"PYUE_LIVE_DIR": "dist/PythonScripting/live"}}}}
+  ```
+
 - **Client under WSL, game on Windows:** this works when the repository is on a Windows drive, because both then see the
   same session folder (`/mnt/p/...` and `P:\...`). Run `python tools\live.py install` with either Python; it writes the
   folder for the game as a Windows path.

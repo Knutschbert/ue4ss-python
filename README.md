@@ -33,6 +33,7 @@ ue4ss.execute_with_delay(2000, lambda: print("two seconds later, on the game thr
 | Use another UE4SS version | [Using another UE4SS version](#using-another-ue4ss-version) |
 | Use another engine version | [docs/ENGINE_VERSIONS.md](docs/ENGINE_VERSIONS.md) |
 | Get editor completion | [docs/VSCODE.md](docs/VSCODE.md) |
+| Develop a game-specific package | [docs/GAME_PACKAGES.md](docs/GAME_PACKAGES.md) |
 | Try things in the running game from a terminal | [docs/LIVE.md](docs/LIVE.md) |
 | Let an AI assistant work in the running game | [docs/LIVE.md](docs/LIVE.md#for-ai-assistants-the-mcp-server), [AGENTS.md](AGENTS.md) |
 
@@ -187,10 +188,22 @@ How a release is made and checked: [docs/RELEASING.md](docs/RELEASING.md).
 tools:
 
 ```
-python3 -m pip install -r requirements-dev.txt    # once: pytest, mypy
+python3 -m pip install -r requirements-dev.txt    # once: pytest, mypy, pyright
 python3 -m pytest python/tests tools -q      # Python tests (any OS)
 tools/run_host_tests.sh                      # C++ tests of core/ (clang++, any OS)
 ```
+
+### Use this checkout from a game package
+
+A game-specific repository keeps its scripts and Python package outside this checkout. For off-game tests and editor
+completion, install this repository's mock module and its bundled typings into that repository's virtual environment:
+
+```powershell
+python -m pip install -e path\to\ue4ss-python
+```
+
+The editable install provides `ue4ss` (the off-game mock), `ue4ss.engine` and the shipped base typings. It is only for
+development: the game receives the native `ue4ss` module bundled by this repository's packaging tool.
 
 Both run on every push ([workflow](.github/workflows/tests.yml)). The in-game test scripts run in the test game with
 `python tools\testgame.py all` ([docs/TESTGAME.md](docs/TESTGAME.md)).

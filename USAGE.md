@@ -16,6 +16,8 @@ ready-made scripts for each topic below are in [examples/](examples/README.md).
 9. [Editor completion and type checking](#9-editor-completion-and-type-checking-optional)
 10. [Try scripts without the game](#10-try-scripts-without-the-game)
 
+Building a library for one game rather than a single script? See [Game packages](docs/GAME_PACKAGES.md).
+
 ## 1. Check the install
 
 The mod is not installed yet? Build and install it first:

@@ -61,12 +61,13 @@ class Follower:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--log", type=Path, help="the UE4SS.log to follow (default: the configured game's)")
+    parser.add_argument("--local-config", type=Path, help="the local.config.json to read (default: this repository's)")
     parser.add_argument("--all", action="store_true", help="show every line")
     parser.add_argument("--once", action="store_true", help="print the lines that exist and stop")
     parser.add_argument("--interval", type=float, default=0.3, help="seconds between looks at the file (default: %(default)s)")
     args = parser.parse_args(argv)
     try:
-        log = args.log or local_config.game()[0] / "UE4SS.log"
+        log = args.log or local_config.game(args.local_config or local_config.CONFIG)[0] / "UE4SS.log"
     except local_config.ConfigError as error:
         print("follow_log: " + str(error) + " (or pass --log)", file=sys.stderr)
         return 1

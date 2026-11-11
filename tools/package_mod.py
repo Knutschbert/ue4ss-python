@@ -20,6 +20,7 @@ from typing import Callable, Iterable, Optional
 
 # Files from the embeddable distribution that are not needed at runtime.
 RUNTIME_SKIP = {"python312._pth", "python3.dll", "python.exe", "pythonw.exe", "python.cat"}
+ROOT = Path(__file__).resolve().parents[1]
 
 KEEP_FOLDERS = ()
 
@@ -226,6 +227,8 @@ def main(argv=None) -> int:
     parser.add_argument("--scripts-dir", type=Path, default=Path("python/python_scripts"))
     parser.add_argument("--library", type=Path, action="append", default=None,
                         help="a Python package folder to ship in python_scripts (repeatable; default: none)")
+    parser.add_argument("--lib-dir", type=Path, action="append", default=None,
+                        help="a folder whose modules ship in dlls (repeatable; default: this repository's python/lib)")
     parser.add_argument("--out-dir", type=Path, default=Path("dist"))
     parser.add_argument("--name", default="PythonScripting")
     parser.add_argument("--game-process", action="append", default=None,
@@ -235,7 +238,7 @@ def main(argv=None) -> int:
     games = () if args.force else tuple(args.game_process or DEFAULT_GAME_PROCESSES)
     try:
         mod_dir = assemble(args.main_dll, args.runtime_dir, args.scripts_dir, args.out_dir, args.name, game_processes=games, process_lister=running_processes,
-                            libraries=args.library or [], lib_dirs=[Path("python/lib")])
+                             libraries=args.library or [], lib_dirs=args.lib_dir if args.lib_dir is not None else [ROOT / "python" / "lib"])
     except GameRunningError as e:
         print(f"refusing to package: {e}", file=sys.stderr)
         return 2

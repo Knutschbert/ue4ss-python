@@ -90,6 +90,11 @@ class LiveCliTest(unittest.TestCase):
         with self.assertRaisesRegex(LiveClientError, "package the mod first"):
             live.install(self.mod.parent / "nowhere", self.session, say=self.said.append)
 
+    def test_cli_uses_a_foreign_mod_and_session_folder(self):
+        self.assertEqual(live.main(["--mod-dir", str(self.mod), "--session-dir", str(self.session), "install"]), 0)
+        self.assertTrue(self.main_py.read_text(encoding="utf-8").startswith(live.BRIDGE_MARK))
+        self.assertTrue((self.session / "inbox").is_dir())
+
     def test_code_runs_in_the_game_and_output_values_and_state_come_back(self):
         live.install(self.mod, self.session, poll_ms=50, say=self.said.append)
         client = self.start_game()

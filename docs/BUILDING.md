@@ -74,6 +74,29 @@ and installing into the game.
 | `--config <mode>`, `--ue4ss-root <path>` | Passed to `build.ps1`. |
 | `--dry-run` | Print the steps, change nothing. |
 
+### Scripts from a game package
+
+The build, runtime and `dist` folders always belong to this checkout. A game-specific repository can supply only the
+scripts to package, without copying them here:
+
+```powershell
+python path\to\ue4ss-python\tools\install.py --local-config local.config.json `
+    --scripts-dir python\python_scripts --library python\mygame
+```
+
+`--scripts-dir` and repeatable `--library` paths supplied as flags are relative to the current directory. The same
+settings may be kept in the calling repository's `local.config.json`; its relative paths are relative to that file:
+
+```json
+{
+  "scripts_dir": "python/python_scripts",
+  "libraries": ["python/mygame"]
+}
+```
+
+`--local-config` also keeps the chosen game path in that repository rather than this checkout. Run with `--dry-run`
+before a first install into a game.
+
 What it will not do: replace a `UE4SS-settings.ini` or a `Mods` folder that exists, turn a real `Mods\PythonScripting`
 folder into a link (it stops and says so), or run while the game is running. The `UE4SS.dll` and `dwmapi.dll` it replaces
 are kept once as `<name>.before-ue4ss-python`.

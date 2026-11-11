@@ -53,6 +53,18 @@ class AssembleTest(unittest.TestCase):
         self.assertTrue((mod / "python_scripts" / "mygame" / "sub" / "chat.py").exists())
         self.assertTrue((mod / "python_scripts" / "mygame" / "__init__.py").exists())
 
+    def test_cli_uses_the_base_library_when_called_from_another_folder(self):
+        seen = {}
+
+        def assemble(*args, **kwargs):
+            seen.update(kwargs)
+            return self.root / "dist" / "Mod"
+
+        with mock.patch.object(package_mod, "assemble", side_effect=assemble):
+            with mock.patch.object(package_mod, "running_processes", return_value=set()):
+                self.assertEqual(package_mod.main(["--main-dll", str(self.main_dll), "--runtime-dir", str(self.runtime), "--scripts-dir", str(self.scripts)]), 0)
+        self.assertEqual(seen["lib_dirs"], [package_mod.ROOT / "python" / "lib"])
+
     def test_a_locked_folder_is_updated_in_place(self):
         first = self.assemble()
         (self.scripts / "main.py").write_text("print('v2')")

@@ -1,6 +1,8 @@
 import sys
 import tempfile
 import unittest
+import contextlib
+import io
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -42,13 +44,21 @@ class FollowLogTest(unittest.TestCase):
         self.assertEqual(follower.poll(), ["new run"])
 
     def test_once_prints_the_python_lines_that_exist(self):
-        import contextlib
-        import io
         self.log.write_text("[x] UE4SS started\n[x] [Python] first\n[x] [Python] second\n")
         out = io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(follow_log.main(["--log", str(self.log), "--once"]), 0)
         self.assertEqual(out.getvalue(), "first\nsecond\n")
+
+    def test_local_config_can_come_from_a_game_package(self):
+        config = Path(self._tmp.name) / "game-package" / "local.config.json"
+        config.parent.mkdir(parents=True)
+        config.write_text('{"game_dir": "%s", "game_exe": "Game.exe"}' % self.log.parent, encoding="utf-8")
+        self.log.write_text("[Python] hello\n", encoding="utf-8")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(follow_log.main(["--local-config", str(config), "--once"]), 0)
+        self.assertEqual(out.getvalue(), "hello\n")
 
 
 if __name__ == "__main__":
