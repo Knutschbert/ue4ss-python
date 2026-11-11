@@ -2,6 +2,11 @@
 """Check an assembled mod folder (tools/package_mod.py output) and pack it into a release zip.
 
     python3 -I tools/make_release.py --mod-dir dist/PythonScripting --out-dir release --host-dll path/to/UE4SS.dll
+    python tools\\make_release.py --build                 # Windows: build UE4SS, the proxy and the mod and package first
+    python tools\\make_release.py --build --with-ue4ss    # also put the matching UE4SS.dll and dwmapi.dll into the zip
+
+With --with-ue4ss the zip carries the UE4SS build the mod was made with (folder ue4ss/), so a user does not have to build
+UE4SS: the two files replace the ones next to the game's executable. The zip is then named ...-win64-with-ue4ss.zip.
 
 The check refuses to build the zip when something the mod needs at load time would be missing on a clean machine:
 every DLL imported by main.dll, python3NN.dll and the extension modules must be shipped in dlls/, be a Windows system DLL,
@@ -21,7 +26,8 @@ from pe_imports import PEError, imports_of  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 MOD_NAME = "PythonScripting"
-UE4SS_REF = "RE-UE4SS 3.0.1 (97adba01)"
+UE4SS_REF = "RE-UE4SS commit 97adba01 (after 3.0.1)"
+UE4SS_FILES = ("UE4SS.dll", "dwmapi.dll")
 
 # Present on every supported Windows (the Universal CRT forwarders and the base system libraries). Anything else must be
 # found in System32 (when that is readable) or shipped.
@@ -117,17 +123,22 @@ def project_version() -> str:
     return f"{major.group(1)}.{minor.group(1)}"
 
 
-def readme_text(version: str, ue4ss_ref: str) -> str:
+def readme_text(version: str, ue4ss_ref: str, with_ue4ss: bool = False) -> str:
+    ue4ss_step = (f"""0. This zip includes the UE4SS build the mod was made with ({ue4ss_ref}): copy ue4ss/UE4SS.dll and ue4ss/dwmapi.dll
+   next to the game's executable (<Game>/Binaries/Win64), replacing the UE4SS files there. Keep your UE4SS-settings.ini
+   and Mods folder. Without a working UE4SS-settings.ini for your game, see https://docs.ue4ss.com/dev/installation-guide.html
+""" if with_ue4ss else "")
     return f"""PythonScripting {version} for UE4SS (Windows x64)
 
 Install:
-1. Copy the PythonScripting folder into <Game>/Binaries/Win64/Mods/ (next to the other UE4SS mods).
+{ue4ss_step}1. Copy the PythonScripting folder into <Game>/Binaries/Win64/Mods/ (next to the other UE4SS mods).
 2. Add the line "PythonScripting : 1" to Mods/mods.txt (or keep enabled.txt in the folder).
 3. Put your script in PythonScripting/python_scripts/main.py and start the game.
    Output and tracebacks go to UE4SS.log with the prefix [Python].
 
 Requirements:
-- A UE4SS build compatible with {ue4ss_ref}; this mod is built against that source tree and its class layouts.
+- UE4SS built from exactly {ue4ss_ref}: this mod is built against that source tree and its class layouts, and
+  another UE4SS build can crash the game at start.{" The matching files are in the folder ue4ss/ of this zip." if with_ue4ss else " Build it from source (see the project README) or use a release zip that includes it."}
 - Unreal Engine 4.25 games are the tested target (see docs/API.md for what scripts can do).
 - Microsoft Visual C++ Redistributable 2015-2022 (x64): vcruntime140*.dll is shipped, msvcp140.dll comes with the game or
   the redistributable (UE4SS itself needs it).
@@ -153,8 +164,9 @@ def notices_text(mod_dir: Path) -> str:
     )
 
 
-def collect(mod_dir: Path, version: str, ue4ss_ref: str, api_doc: Optional[Path]) -> List[Tuple[str, bytes]]:
-    """Archive entries (path, content), sorted so the zip is reproducible."""
+def collect(mod_dir: Path, version: str, ue4ss_ref: str, api_doc: Optional[Path], ue4ss_dir: Optional[Path] = None, ue4ss_licence: Optional[Path] = None) -> List[Tuple[str, bytes]]:
+    """Archive entries (path, content), sorted so the zip is reproducible. With `ue4ss_dir` the UE4SS.dll and proxy of that
+    folder are added under ue4ss/ (and the UE4SS licence text, when given)."""
     entries = []
     for path in sorted(mod_dir.rglob("*")):
         if path.is_file():
@@ -166,8 +178,19 @@ def collect(mod_dir: Path, version: str, ue4ss_ref: str, api_doc: Optional[Path]
             entries.append((f"{MOD_NAME}/{relative}", data))
     if not any(name == f"{MOD_NAME}/python_scripts/main.py" for name, _ in entries):
         entries.append((f"{MOD_NAME}/python_scripts/main.py", STUB_MAIN.encode("utf-8")))
-    entries.append(("README.txt", readme_text(version, ue4ss_ref).encode("utf-8")))
-    entries.append(("THIRD_PARTY_NOTICES.txt", notices_text(mod_dir).encode("utf-8")))
+    if ue4ss_dir is not None:
+        for name in UE4SS_FILES:
+            if not (ue4ss_dir / name).is_file():
+                raise FileNotFoundError(f"{ue4ss_dir / name} not found: build the targets UE4SS and proxy first")
+            entries.append((f"ue4ss/{name}", (ue4ss_dir / name).read_bytes()))
+        if ue4ss_licence is not None and ue4ss_licence.is_file():
+            entries.append(("ue4ss/LICENSE.txt", ue4ss_licence.read_bytes()))
+    entries.append(("README.txt", readme_text(version, ue4ss_ref, with_ue4ss=ue4ss_dir is not None).encode("utf-8")))
+    notices = notices_text(mod_dir)
+    if ue4ss_dir is not None:
+        notices = ("UE4SS (ue4ss/UE4SS.dll, ue4ss/dwmapi.dll): built from https://github.com/UE4SS-RE/RE-UE4SS, " + ue4ss_ref + ", MIT licence"
+                   + (" (ue4ss/LICENSE.txt)" if ue4ss_licence is not None and ue4ss_licence.is_file() else "") + ".\n\n" + notices)
+    entries.append(("THIRD_PARTY_NOTICES.txt", notices.encode("utf-8")))
     if api_doc and api_doc.exists():
         entries.append(("docs/API.md", api_doc.read_bytes()))
     sums = "".join(f"{hashlib.sha256(data).hexdigest()}  {name}\n" for name, data in sorted(entries))
@@ -214,7 +237,21 @@ def main(argv=None, system_dir: Optional[Path] = None) -> int:
                         help="UE4SS.dll of the target game (imports it provides count as present); default: the UE4SS.dll of this build")
     parser.add_argument("--ue4ss-ref", default=UE4SS_REF, help="text for the README's requirements line")
     parser.add_argument("--check-only", action="store_true", help="run the checks and stop")
+    parser.add_argument("--build", action="store_true", help="build UE4SS, the proxy and the mod and package the mod first (Windows)")
+    parser.add_argument("--with-ue4ss", action="store_true", help="put the matching UE4SS.dll and dwmapi.dll into the zip (folder ue4ss/)")
+    parser.add_argument("--ue4ss-bin", type=Path, default=ROOT / "build" / "Game__Shipping__Win64" / "bin", help="where the built UE4SS.dll and dwmapi.dll are")
+    parser.add_argument("--ue4ss-root", type=Path, default=ROOT.parent / "RE-UE4SS", help="the RE-UE4SS checkout (for its licence text)")
     args = parser.parse_args(argv)
+
+    if args.build:
+        import install      # here: only this option needs the build and packaging steps
+        try:
+            steps = install.Installer()
+            steps.build_all()
+            steps.package_mod()
+        except install.InstallError as error:
+            print("ERROR:", error, file=sys.stderr)
+            return 1
 
     if not args.mod_dir.is_dir():
         print(f"mod folder not found: {args.mod_dir} (run tools/package_mod.py first)", file=sys.stderr)
@@ -233,9 +270,15 @@ def main(argv=None, system_dir: Optional[Path] = None) -> int:
         return 0
 
     version = project_version()
-    target = args.out_dir / f"{MOD_NAME}-{version}-win64.zip"
-    write_zip(target, collect(args.mod_dir, version, args.ue4ss_ref, ROOT / "docs" / "API.md"))
-    problems = verify_zip(target)
+    target = args.out_dir / f"{MOD_NAME}-{version}-win64{'-with-ue4ss' if args.with_ue4ss else ''}.zip"
+    try:
+        entries = collect(args.mod_dir, version, args.ue4ss_ref, ROOT / "docs" / "API.md", ue4ss_dir=args.ue4ss_bin if args.with_ue4ss else None,
+                          ue4ss_licence=args.ue4ss_root / "LICENSE")
+    except FileNotFoundError as error:
+        print("ERROR:", error, file=sys.stderr)
+        return 1
+    write_zip(target, entries)
+    problems = verify_zip(target) + ([f"zip lacks ue4ss/{name}" for name in UE4SS_FILES if f"ue4ss/{name}" not in zipfile.ZipFile(target).namelist()] if args.with_ue4ss else [])
     if problems:
         for problem in problems:
             print("ERROR:", problem)

@@ -166,7 +166,8 @@ The build configuration must match too: `Game__Shipping__Win64` suits games on e
 ## Install from a release zip
 
 For later, when releases exist. The zip contains the `PythonScripting` folder and names the UE4SS commit it was built
-against; that UE4SS has to be in the game (see [Requirements](#requirements)).
+against; that UE4SS has to be in the game (see [Requirements](#requirements)). A zip named `...-with-ue4ss.zip` brings the
+matching `UE4SS.dll` and `dwmapi.dll` in a folder `ue4ss`: copy both next to the game's executable first.
 
 1. Copy the `PythonScripting` folder into `<Game>\Binaries\Win64\Mods\`.
 2. Add the line `PythonScripting : 1` to `Mods\mods.txt` (or keep `enabled.txt` in the folder).

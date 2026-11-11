@@ -4,9 +4,21 @@
 `release/PythonScripting-<version>-win64.zip`. Run it last, on the machine that built `main.dll`:
 
 ```
-python3 -I tools/package_mod.py --main-dll build/src/main.dll --runtime-dir third_party/python/runtime --out-dir dist
-python3 -I tools/make_release.py --host-dll <the UE4SS.dll the build used>      # --check-only runs the checks and stops
+python tools\make_release.py --build --with-ue4ss      # Windows: build everything, package, check, zip with the matching UE4SS
+python tools\make_release.py --build                   # the same without the UE4SS files in the zip
+python3 -I tools/make_release.py                       # check and zip the dist/PythonScripting that is already there
+python3 -I tools/make_release.py --check-only          # only the checks
 ```
+
+| Option | Effect |
+|---|---|
+| `--build` | Build UE4SS, the proxy and the mod ([`tools/build.ps1`](../tools/build.ps1)) and package the mod first. |
+| `--with-ue4ss` | Add `ue4ss/UE4SS.dll` and `ue4ss/dwmapi.dll` (from `build\Game__Shipping__Win64\bin`) and the UE4SS licence. The zip is named `...-win64-with-ue4ss.zip` and its README tells the user to copy the two files next to the game's executable. |
+| `--host-dll <UE4SS.dll>` | The UE4SS.dll the import check treats as present (default: the one of this build). |
+| `--ue4ss-ref <text>` | How the README names the UE4SS version. |
+
+Prefer `--with-ue4ss` for a public release: without it every user has to build UE4SS from the same commit themselves
+(item 7 of the checklist).
 
 The version comes from `core/include/pyue/version.hpp`. The zip is reproducible (sorted members, fixed timestamps) and is read back
 and verified (required members present, `SHA256SUMS.txt` matches) before the script reports success.

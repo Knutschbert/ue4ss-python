@@ -198,5 +198,41 @@ class ReleaseZipTest(unittest.TestCase):
         self.assertRegex(make_release.project_version(), r"^\d+\.\d+$")
 
 
+
+class WithUe4ssTest(unittest.TestCase):
+    def test_the_matching_ue4ss_files_and_licence_go_into_the_zip_and_the_readme_says_so(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            mod = build_mod(root)
+            bin_dir = root / "bin"
+            bin_dir.mkdir()
+            (bin_dir / "UE4SS.dll").write_bytes(b"ue4ss")
+            (bin_dir / "dwmapi.dll").write_bytes(b"proxy")
+            licence = root / "LICENSE"
+            licence.write_text("MIT text")
+            entries = dict(make_release.collect(mod, "9.9", "RE-UE4SS commit abc", None, ue4ss_dir=bin_dir, ue4ss_licence=licence))
+            self.assertEqual(entries["ue4ss/UE4SS.dll"], b"ue4ss")
+            self.assertEqual(entries["ue4ss/dwmapi.dll"], b"proxy")
+            self.assertEqual(entries["ue4ss/LICENSE.txt"], b"MIT text")
+            readme = entries["README.txt"].decode()
+            self.assertIn("copy ue4ss/UE4SS.dll and ue4ss/dwmapi.dll", readme)
+            self.assertIn("RE-UE4SS commit abc", readme)
+            self.assertIn("MIT licence (ue4ss/LICENSE.txt)", entries["THIRD_PARTY_NOTICES.txt"].decode())
+            self.assertIn("ue4ss/UE4SS.dll", entries["SHA256SUMS.txt"].decode())
+
+    def test_without_the_option_nothing_of_ue4ss_is_in_the_zip(self):
+        with tempfile.TemporaryDirectory() as folder:
+            entries = dict(make_release.collect(build_mod(Path(folder)), "9.9", "RE-UE4SS commit abc", None))
+            self.assertFalse([name for name in entries if name.startswith("ue4ss/")])
+            self.assertIn("Build it from source", entries["README.txt"].decode())
+
+    def test_a_missing_ue4ss_file_is_an_error_not_a_zip_without_it(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "bin").mkdir()
+            (root / "bin" / "UE4SS.dll").write_bytes(b"ue4ss")
+            with self.assertRaisesRegex(FileNotFoundError, "dwmapi.dll"):
+                make_release.collect(build_mod(root), "9.9", "x", None, ue4ss_dir=root / "bin")
+
 if __name__ == "__main__":
     unittest.main()
