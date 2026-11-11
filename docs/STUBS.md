@@ -13,10 +13,12 @@ still completes.
 
 Both sets are written by the same code, `python/lib/ue4ss/basestubs.py`: a signature is read from the first line of a
 docstring (`name(args) -> result: text`); a Python function without such a line contributes its parameter names; a built-in
-without one gets `(*args, **kwargs)`.
+without one gets `(*args, **kwargs)`. Docstrings name parameters without types, so two small tables in that file give the
+parameter names the module uses everywhere (`path`, `callback`, `key`, `milliseconds`, ...) and the results of its functions
+their types; everything else is `Any`.
 
 `tools/tests/test_gen_base_stubs.py` fails when the committed base typings differ from what the tool writes. After changing
 the API (and the off-game module with it) run `python3 -I tools/gen_base_stubs.py`.
 
-Limits of the committed set: parameter and return types are mostly `Any` (the off-game module is not annotated), and it
+Limits of the committed set: values that depend on the game (properties, call results, struct fields) are `Any`, and it
 describes the off-game module, which is kept equal to the native one by name and signature but is not the native one.

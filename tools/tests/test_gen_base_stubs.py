@@ -28,5 +28,17 @@ class ShippedStubsTest(unittest.TestCase):
         self.assertIn("path", line)
 
 
+    def test_well_known_parameters_and_results_have_concrete_types(self):
+        base = gen_base_stubs.files()[gen_base_stubs.OUT / "__init__.pyi"]
+        lines = {l.split("(")[0][4:]: l for l in base.splitlines() if l.startswith("def ")}
+        self.assertEqual(lines["find_first_of"], "def find_first_of(class_name: str) -> UObject | None: ...")
+        self.assertEqual(lines["register_hook"], "def register_hook(path: str, pre: Callable[..., Any] | None = ..., post: Callable[..., Any] | None = ..., instance: UObject | None = ...) -> tuple[int, int]: ...")
+        self.assertEqual(lines["execute_with_delay"], "def execute_with_delay(milliseconds: float, fn: Callable[..., Any]) -> None: ...")
+        self.assertIn("-> Future[Any]", lines["call_in_game_thread"])
+        self.assertIn("key: Key | int", lines["register_key_down"])
+        self.assertTrue(lines["register_key_down"].endswith("-> int: ..."))
+        self.assertTrue(lines["is_game_thread"].endswith("-> bool: ..."))
+
+
 if __name__ == "__main__":
     unittest.main()

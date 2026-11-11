@@ -4,7 +4,7 @@ from ue4ss import Key
 
 ue4ss.register_key_down(Key.F5, ue4ss.reload)
 
-spawned = []
+spawned: list = []                      # the actors this script made
 
 
 def spawn_cube():

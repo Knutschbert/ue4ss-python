@@ -1,4 +1,4 @@
-"""Find out which game function a key press calls (ticket 58j.23; owner test 2026-10-28: T still opened the team chat with the input box open, F1 still opened the key list).
+"""Find out which game function a key press calls (for example to find the function to replace when a key must be blocked).
 
     from ue4ss import trace
     session = trace.start([controller.get_class()], r"chat|say|keymap|toggle", seconds=8)    # logs "[trace] Class:Function" once per function that is called

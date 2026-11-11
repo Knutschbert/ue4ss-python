@@ -1,4 +1,4 @@
-# Held keys without any C++ change (58j.26.20, docs/VEHICLES.md): driving a car with WASD needs to know which keys are HELD right now, but register_key_down only reports presses.
+# Held keys without any C++ change : driving a car with WASD needs to know which keys are HELD right now, but register_key_down only reports presses.
 # The embedded Python ships _ctypes, so user32.GetAsyncKeyState can be called from a script. Checks: ctypes imports, the call returns an int, no key is held at rest, the foreground window is the game's own
 # (so typing in another window does not drive the car). Then for 15 s every change of W, A, S, D, SPACE, SHIFT is printed as a [keys] line: press them in the game window (for the owner; the test passes without keys).
 # Chivalry 2 and the test game.

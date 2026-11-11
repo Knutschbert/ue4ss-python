@@ -117,7 +117,7 @@ class StubGenTest(unittest.TestCase):
         self.assertIn("class UObjectBase(object):", base)
         self.assertIn("class UObject(UObjectBase):", base)
         self.assertIn("class Array(Generic[T]):", base)
-        self.assertIn("def find_objects(class_name: Any = ...", base)
+        self.assertIn("def find_objects(class_name: str | None = ...", base)
         self.assertIn("class Key(IntEnum):", base)
 
     def test_package_filter(self):

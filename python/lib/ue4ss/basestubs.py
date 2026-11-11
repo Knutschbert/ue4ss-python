@@ -11,6 +11,7 @@ _FALLBACK = "(*args: Any, **kwargs: Any) -> Any"
 # Container and view classes are generic in the stubs; they are written by hand because the runtime classes cannot say it.
 _PRELUDE = '''from __future__ import annotations
 from enum import IntEnum, IntFlag
+from concurrent.futures import Future
 from typing import Any, Callable, Generic, Iterator, TypeVar, overload
 
 T = TypeVar("T")
@@ -82,6 +83,31 @@ _HAND_WRITTEN = {"Array", "FixedArray", "Map", "Set"}
 _BUILTIN_TYPES = {"int", "str", "float", "bool", "list", "dict", "tuple", "set", "None", "Any", "object", "bytes", "type", "UEError"}
 
 
+# Docstring signatures name parameters without types ("register_hook(path, pre=None, post=None)"). These parameter names mean the
+# same thing wherever the module uses them, so they get their type here; any other parameter stays Any.
+_PARAM_TYPES = {
+    "path": "str", "class_path": "str", "class_name": "str", "name": "str", "address": "int", "id": "int", "limit": "int", "milliseconds": "float",
+    "required_flags": "int", "banned_flags": "int", "exact_class": "bool", "inherited": "bool", "degrees": "bool", "order": "str", "async_": "bool",
+    "callback": "Callable[..., Any]", "fn": "Callable[..., Any]", "pre": "Callable[..., Any]", "post": "Callable[..., Any]",
+    "key": "Key | int", "modifiers": "tuple[ModifierKey | int, ...] | list[ModifierKey | int]", "object": "UObject", "instance": "UObject",
+}
+# Results of the module's functions whose docstring does not state one.
+_RETURN_TYPES = {
+    "is_game_thread": "bool", "reload": "None", "execute_in_game_thread": "None", "execute_with_delay": "None", "call_in_game_thread": "Future[Any]",
+    "register_hook": "tuple[int, int]", "unregister_hook": "None", "register_replacement": "int", "unregister_replacement": "None",
+    "register_key_down": "int", "unregister_key_down": "None", "notify_on_new_object": "int", "unregister_notify_on_new_object": "None",
+    "bind_event": "int", "unbind_event": "None", "set_slow_callback_warning": "None",
+}
+
+
+def _typed(name, has_default):
+    """`name: type` for a parameter without an annotation; a parameter with a default also accepts None."""
+    kind = _PARAM_TYPES.get(name, "Any")
+    if has_default and kind != "Any":
+        kind += " | None"
+    return f"{name}: {kind}"
+
+
 def _clean_type(text, known):
     """The annotation text if every name in it is known, else Any (docstring return types are free text)."""
     names = set(re.findall(r"[A-Za-z_]\w*", text))
@@ -109,7 +135,7 @@ def _signature_of(obj, method):
             if parameter.kind is inspect.Parameter.KEYWORD_ONLY and not star:
                 pieces.append("*")
                 star = True
-            pieces.append(f"{parameter.name}: Any{default}")
+            pieces.append(_typed(parameter.name, bool(default)) + default)
     return ", ".join((["self"] if method else []) + pieces)
 
 
@@ -120,15 +146,17 @@ def _def_line(indent, name, doc, method=False, known=frozenset(), obj=None):
     if match and match.group("name") == name:
         args = match.group("args").strip()
         ret = _clean_type((match.group("ret") or "Any").strip(), known)
+        if ret == "Any" and not method:             # the docstring says nothing usable ("-> id"): the table knows the module's functions
+            ret = _RETURN_TYPES.get(name, "Any")
         pieces = [a.strip() for a in args.split(",") if a.strip()] if args else []
         cleaned = []
         for piece in pieces:
             if piece.startswith(("*", "/")) or "=" in piece or ":" in piece:
                 cleaned.append(piece if "=" not in piece or ":" in piece.split("=")[0] else piece.replace("=", ": Any = ", 1) if False else piece)
             else:
-                cleaned.append(piece + ": Any")
-        # defaults written in the docstring (name=value) become `name: Any = ...`
-        cleaned = [re.sub(r"^(\w+)=.*$", r"\1: Any = ...", c) for c in cleaned]
+                cleaned.append(_typed(piece, False))
+        # defaults written in the docstring (name=value) become `name: <type> | None = ...`
+        cleaned = [re.sub(r"^(\w+)=.*$", lambda m: _typed(m.group(1), True) + " = ...", c) for c in cleaned]
         signature = ", ".join((["self"] if method else []) + cleaned)
         line = f"{indent}def {name}({signature}) -> {ret}: ..."
         try:
@@ -138,7 +166,7 @@ def _def_line(indent, name, doc, method=False, known=frozenset(), obj=None):
             pass   # an odd docstring: fall through to the generic signature
     signature = _signature_of(obj, method) if obj is not None else None
     if signature is not None:
-        return f"{indent}def {name}({signature}) -> Any: ..."
+        return f"{indent}def {name}({signature}) -> {'Any' if method else _RETURN_TYPES.get(name, 'Any')}: ..."
     return f"{indent}def {name}({'self, ' if method else ''}*args: Any, **kwargs: Any) -> Any: ..."
 
 
