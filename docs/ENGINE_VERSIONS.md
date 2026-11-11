@@ -31,7 +31,7 @@ per-version layouts (member offsets, virtual tables, signatures). So:
 
 | Place | Tied to | Effect on another version |
 |---|---|---|
-| [`python/lib/ue4ss/bytecode.py`](../python/lib/ue4ss/bytecode.py) | The script token table of 4.25 | 4.26 and 4.27 are believed to use the same tokens (not checked against their sources). UE 5 added and changed tokens: `ue4ss.bytecode` would stop with `BytecodeError` on functions that use them (it never guesses). Two 4.25 tokens are also missing from the table (`0x6C`, `0x6D`). Only `ue4ss.bytecode` is affected, not hooks or calls. |
+| [`python/lib/ue4ss/bytecode.py`](../python/lib/ue4ss/bytecode.py) | The script token table of 4.25 | 4.26 and 4.27 are believed to use the same tokens (not checked against their sources). UE 5 added and changed tokens: `ue4ss.bytecode` would stop with `BytecodeError` on functions that use them (it never guesses). Only `ue4ss.bytecode` is affected, not hooks or calls. |
 | [`testgame/PyTestGame`](../testgame/PyTestGame) | A 4.25 project; compiler pinned to Visual Studio 2019 in the `.Target.cs` files | Must be built with the other engine to test on it (below) |
 | [`testgame/ue4ss/UE4SS-settings.ini`](../testgame/ue4ss/UE4SS-settings.ini) | `[EngineVersionOverride]` 4.25 | Must name the other version |
 | [`tools/testgame.py`](../tools/testgame.py), [`tools/package_testgame.ps1`](../tools/package_testgame.ps1) | The staging folder name `WindowsNoEditor` | UE 5 stages into `Windows` |

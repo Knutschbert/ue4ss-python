@@ -14,7 +14,8 @@ import struct
 import ue4ss as _ue
 
 # token -> (name, operand layout). Layout items: ptr name u8 u16 u32 i32 i64 f32 bytesN cstr ustr expr params(until EndFunctionParms)
-# and the repeated groups handled in code (see _read). Numbers are EExprToken of Unreal Engine 4.25.
+# and the repeated groups handled in code (see _read). Numbers are EExprToken of Unreal Engine 4.25, complete up to its last
+# token 0x6D. Unreal Engine 5 adds and changes tokens: a function that uses one stops with BytecodeError (docs/ENGINE_VERSIONS.md).
 _TOKENS = {
     0x00: ("LocalVariable", ["ptr"]), 0x01: ("InstanceVariable", ["ptr"]), 0x02: ("DefaultVariable", ["ptr"]),
     0x04: ("Return", ["expr"]), 0x06: ("Jump", ["u32"]), 0x07: ("JumpIfNot", ["u32", "expr"]),
@@ -50,6 +51,7 @@ _TOKENS = {
     0x65: ("ArrayConst", ["ptr", "i32", "until:0x66"]), 0x66: ("EndArrayConst", []), 0x67: ("SoftObjectConst", ["expr"]),
     0x68: ("CallMath", ["ptr", "params"]), 0x69: ("SwitchValue", ["switch"]), 0x6A: ("InstrumentationEvent", ["instrumentation"]),
     0x6B: ("ArrayGetByRef", ["expr", "expr"]),
+    0x6C: ("ClassSparseDataVariable", ["ptr"]), 0x6D: ("FieldPathConst", ["expr"]),
 }
 END_OF_SCRIPT = 0x53
 END_FUNCTION_PARMS = 0x16

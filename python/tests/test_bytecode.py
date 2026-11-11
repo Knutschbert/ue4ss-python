@@ -28,6 +28,27 @@ def intc(value):
 
 
 class WalkerTest(unittest.TestCase):
+    def test_the_last_two_tokens_of_engine_4_25_parse(self):
+        # ClassSparseDataVariable carries a property pointer like the other variable tokens; FieldPathConst wraps one expression
+        script = b"\x0f" + ptr(0xAA) + b"\x6c" + ptr(0x5150) + b"\x6d" + b"\x1f" + b"Prop\x00" + END      # Let(prop, SparseVar, FieldPathConst("Prop"))
+        nodes = bytecode.parse(script)
+        self.assertEqual([n.name for n in nodes], ["Let", "EndOfScript"])
+        names = []
+
+        def walk(node):
+            names.append(node.name)
+            for child in getattr(node, "children", []) or []:
+                walk(child)
+
+        for node in nodes:
+            walk(node)
+        self.assertIn("ClassSparseDataVariable", names)
+        self.assertIn("FieldPathConst", names)
+        self.assertIn("StringConst", names)
+
+    def test_the_token_table_covers_every_token_of_engine_4_25_up_to_its_last(self):
+        self.assertEqual(max(bytecode._TOKENS), 0x6D)
+
     def test_end_of_script_alone(self):
         nodes = bytecode.parse(END)
         self.assertEqual([n.name for n in nodes], ["EndOfScript"])

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `ue4ss.bytecode` knows the last two script tokens of engine 4.25 (`0x6C`, `0x6D`).
 - MCP server for the live bridge: `.mcp.json`, clear answers without a running game, `live_wait_ready`; `AGENTS.md` for agents.
 - `docs/ENGINE_VERSIONS.md`: which engine versions are supported and how to add one.
 - `tools/live.py`: run Python in the running game from a terminal (file-based bridge, with an MCP adapter).
