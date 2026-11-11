@@ -41,6 +41,8 @@ Python itself is bundled with the mod; nothing else has to be installed.
 3. Put your script in `PythonScripting/python_scripts/main.py` and start the game.
    Output and tracebacks go to `UE4SS.log` with the prefix `[Python]`.
 
+`USAGE.md` is the getting-started guide: first script, more script files, reloading, hooks, typings.
+
 ## Build
 
 Windows, MSVC (C++23), CMake, Rust, and access to the private UEPseudo repository (a GitHub account linked to Epic Games).
