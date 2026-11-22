@@ -58,6 +58,12 @@ answering), `wait_until` (block until an expression becomes true, re-evaluated a
 registered under a group name), `travel` (open a level), `reload` and `stop`.
 [`tools/live_client.py`](../tools/live_client.py) is the client library the command-line tool uses.
 
+## Headless or containerized games
+
+On a dedicated/headless server, or a game running under Wine/Proton in a
+container, the bridge needs a different game-thread pump, a proxy override, and
+care with the Wine path boundary. See [`HEADLESS.md`](HEADLESS.md).
+
 ## For AI assistants: the MCP server
 
 [`tools/live_mcp.py`](../tools/live_mcp.py) offers the bridge to an AI assistant as MCP tools over stdio.
