@@ -789,17 +789,82 @@
    "startup": true,
    "note": "feasibility of Python-driven actors: tick, hooks on an instance, timer loop"
   },
-  {
-   "file": "keys_probe_main.py",
-   "marker": "keys probe finished",
-   "kind": "test",
+   {
+    "file": "keys_probe_main.py",
+    "marker": "keys probe finished",
+    "kind": "test",
    "targets": [
     "testgame"
    ],
    "min_pass": {
     "testgame": 4
+    },
+    "note": "held keys (W A S D) through ctypes GetAsyncKeyState without C++ changes; keys can be pressed during the 15 s poll"
    },
-   "note": "held keys (W A S D) through ctypes GetAsyncKeyState without C++ changes; keys can be pressed during the 15 s poll"
-  }
+   {
+    "file": "managed_reload_main.py",
+    "marker": "managed reload handover finished",
+    "kind": "test",
+    "targets": [
+     "testgame"
+    ],
+    "min_pass": {
+     "testgame": 17
+    },
+    "startup": true,
+    "note": "three managed cleanup, stale-work and worker handovers across native global reload"
+   },
+   {
+    "file": "managed_bootstrap_main.py",
+    "marker": "managed bootstrap finished",
+    "kind": "test",
+    "targets": [
+     "testgame"
+    ],
+    "min_pass": {
+     "testgame": 3
+    },
+    "startup": true,
+    "note": "real-engine startup ordering, disabled components and sibling startup failure isolation"
+   },
+   {
+    "file": "managed_live_main.py",
+    "marker": "managed live integration finished",
+    "kind": "test",
+    "targets": [
+     "testgame"
+    ],
+    "min_pass": {
+     "testgame": 3
+    },
+    "startup": true,
+    "note": "packaged managed live component owner-scheduled file polling and shared live core"
+   },
+   {
+    "file": "managed_runtime_soak_main.py",
+    "marker": "managed runtime soak finished",
+    "kind": "test",
+    "targets": [
+     "testgame"
+    ],
+    "min_pass": {
+     "testgame": 6
+    },
+    "startup": true,
+    "note": "configurable coexistence soak of live file polling, independent managed callbacks and a worker"
+   },
+   {
+    "file": "site_packages_main.py",
+    "marker": "site-packages import test finished",
+    "kind": "test",
+    "targets": [
+     "testgame"
+    ],
+    "min_pass": {
+     "testgame": 3
+    },
+    "startup": true,
+    "note": "imports a temporary pure-Python package from the mod-local site-packages path"
+   }
  ]
 }

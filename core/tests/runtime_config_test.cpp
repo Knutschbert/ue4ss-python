@@ -17,10 +17,11 @@ int main()
     PYUE_CHECK(config.home == dlls);
     PYUE_CHECK(config.scripts_dir == scripts);
     PYUE_CHECK(config.main_script == scripts / "main.py");
-    PYUE_CHECK(config.module_search_paths.size() == 3);
+    PYUE_CHECK(config.module_search_paths.size() == 4);
     PYUE_CHECK(config.module_search_paths[0] == dlls / "python312.zip");
     PYUE_CHECK(config.module_search_paths[1] == dlls);
     PYUE_CHECK(config.module_search_paths[2] == scripts);
+    PYUE_CHECK(config.module_search_paths[3] == dlls.parent_path() / "site-packages");
 
     bool threw = false;
     try { (void)pyue::make_runtime_config({}, scripts, "python312.zip"); } catch (const std::invalid_argument&) { threw = true; }

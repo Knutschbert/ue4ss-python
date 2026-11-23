@@ -16,7 +16,7 @@ supported; `LessEqual421` is untried.
 
 | Engine | Game | What was checked |
 |---|---|---|
-| UE 4.25 | PyTestGame, the test project in this repository ([TESTGAME.md](TESTGAME.md)) | The in-game test scripts in [`python/examples`](../python/examples): 54 of 55 pass (2026-11-11); `bind_event_main.py` fails on a known defect |
+| UE 4.25 | PyTestGame, the test project in this repository ([TESTGAME.md](TESTGAME.md)) | Full in-game suite: 54 of 55 passed, with the sole `bind_event_main.py` failure marked expected for a known defect (2026-11-23). Focused `managed_reload_main.py`: three global-reload handovers passed (17 checks, 2026-11-23). |
 | UE 4.25 (modified) | Chivalry 2 | The in-game test scripts that do not need the test project's own classes; most measurements in the design records |
 
 Other engine versions (4.26, 4.27, 5.x) are untried; what to expect and how to add one is in
@@ -26,7 +26,7 @@ Other engine versions (4.26, 4.27, 5.x) are untried; what to expect and how to a
 
 | Tool | Checked |
 |---|---|
-| [`tools/testgame.py`](../tools/testgame.py) | Full pass in the test game, 2026-11-11 |
+| [`tools/testgame.py`](../tools/testgame.py) | Full suite: 55 scripts, zero unexpected failures and one expected known defect; focused managed global-reload test: 3 handovers passed (2026-11-23) |
 | [`tools/install.py`](../tools/install.py) | Installed into a game, 2026-11-11 |
 | [`tools/live.py`](../tools/live.py) | Used against a running game, 2026-11-11 |
 | [`tools/live_mcp.py`](../tools/live_mcp.py) | Driven over stdio against a running game, 2026-11-11: status, readiness (with and without a pawn), execute, an error, a job, wait, cleanup, sleep, reset. Untried: travel, reload, stop; being started by an MCP client from `.mcp.json` |

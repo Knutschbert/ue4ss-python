@@ -180,6 +180,18 @@ def test_listener_requests_windows_exclusive_address_use_when_available(monkeypa
     listener.close()
 
 
+def test_listener_rejects_second_bind_while_endpoint_is_owned():
+    listener = create_listener("127.0.0.1", 0)
+    host, port = listener.getsockname()[:2]
+    try:
+        with pytest.raises(OSError):
+            create_listener(host, port)
+    finally:
+        listener.close()
+    rebound = create_listener(host, port)
+    rebound.close()
+
+
 def test_token_provisioning_is_private_and_never_overwrites(tmp_path):
     path = tmp_path / "private" / "live.token"
     token = provision_token(path)
@@ -189,6 +201,13 @@ def test_token_provisioning_is_private_and_never_overwrites(tmp_path):
         assert stat.S_IMODE(path.stat().st_mode) == 0o600
     with pytest.raises(TokenSecurityError, match="overwrite"):
         provision_token(path)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="exercises the real Windows icacls ACL path")
+def test_windows_token_factory_restricts_new_parent_and_file_to_current_sid(tmp_path):
+    path = tmp_path / "private-live-token" / "token"
+    token = provision_token(path)
+    assert read_token(path) == token
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX mode-bit mutation test")
@@ -223,19 +242,32 @@ def test_windows_acl_provisioning_removes_inheritance_and_rejects_other_aces(mon
     def run(args, **_kwargs):
         calls.append(args)
         result = Result()
-        result.stdout = f"{args[1]}\n    {sid}:(R)\n"
+        if "/save" in args:
+            acl_file = Path(args[args.index("/save") + 1])
+            acl_file.write_bytes(f"token\nD:PAI(A;;FR;;;{sid})\n".encode("utf-16le"))
         return result
 
     monkeypatch.setattr(security.subprocess, "run", run)
     _set_and_check_windows_acl(tmp_path / "token")
     assert calls[0][2:4] == ["/inheritance:r", "/grant:r"]
     assert calls[0][-1] == f"*{sid}:(R)"
+    assert calls[1][3:] == [
+        "*S-1-5-18", "*S-1-5-32-544", "*S-1-3-4",
+    ]
+    assert calls[2][2] == "/save"
 
     def unsafe_run(args, **_kwargs):
+        if "/save" in args:
+            acl_file = Path(args[args.index("/save") + 1])
+            acl_file.write_bytes(
+                (
+                    f"token\nD:PAI(A;;FR;;;{sid})"
+                    "(A;;FR;;;S-1-5-32-545)\n"
+                ).encode("utf-16le")
+            )
         result = Result()
-        result.stdout = f"{args[1]}\n    {sid}:(R)\n    BUILTIN\\Users:(R)\n"
         return result
 
     monkeypatch.setattr(security.subprocess, "run", unsafe_run)
-    with pytest.raises(TokenSecurityError, match="beyond the current user"):
-        _set_and_check_windows_acl(tmp_path / "token")
+    with pytest.raises(TokenSecurityError, match="not restricted"):
+        security._check_windows_acl(tmp_path / "token")

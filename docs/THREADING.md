@@ -21,9 +21,12 @@ fbb4fdd and from your game's UE4SS.log; "Observed" results come from `python/exa
   was: `GameEngineTick` found by scan (with a warning that the vtable address differs, so the scan
   address is used), and UE4SS itself registers `UE4SS.EngineTick.GameThreadInitializer` as an
   engine-tick prehook.
-- Lua's `ExecuteInGameThread` queues actions under a recursive mutex and drains them from the engine
-  tick (default, setting `DefaultExecuteInGameThreadMethod = EngineTick`) or from a `ProcessEvent`
-  hook, and refuses to start an action while another is executing.
+- Lua's `ExecuteInGameThread` queues actions under a recursive mutex and selects its drain method
+  using the UE4SS Lua setting `DefaultExecuteInGameThreadMethod`.
+- The Python executor is separate: `src/GameThreadExecutor.cpp` uses the engine-tick callback
+  whenever it is available, unless `PYUE_EXECUTOR=processevent` explicitly forces the fallback.
+  If the tick hook is unavailable, it uses `ProcessEvent` when available. The Lua setting does not
+  select the Python executor.
 - The UnchainedPlugin read-fault seal is per-thread: `call_guarded` opens the plugin
   read-guard on the calling thread for the duration of one guarded engine call, the VEH seals on
   the faulting thread (the same thread while the guard is open), and the sealed count is consumed
@@ -112,13 +115,13 @@ calls and distinct Windows thread ids per entry point; it keeps at most 8 ids pe
   thread; checked by the same example.
 
 ## ProcessEvent fallback
-When the engine-tick hook is missing the executor drains from a `ProcessEvent` post callback and takes the thread of the first
-call as the game thread. Set the environment variable `PYUE_EXECUTOR=processevent` to force this path for a test
-(`python/examples/executor_fallback_main.py`, manifest `env`). Observed: in the test game and in 3 of 3 Chivalry 2 runs the
-captured thread was the engine tick thread (checked against the probe's own tick hook), and queued and delayed tasks ran there,
-although Chivalry 2 calls `ProcessEvent` from 8 or more threads later on. The capture is still a heuristic (the first caller
-after the hook is installed happens to be the game thread at that moment), so the fallback is kept as a last resort and logs
-`ProcessEvent (fallback, unverified)`; a game whose first call comes from another thread would run Python on the wrong thread.
+When the engine-tick hook is unavailable, or when explicitly forced for a test, the executor drains from a `ProcessEvent`
+post callback and captures the thread of the first callback as the presumed game thread. Set `PYUE_EXECUTOR=processevent`
+to force this path (`python/examples/executor_fallback_main.py`, manifest `env`). Past test-game and Chivalry 2 runs
+observed that first captured thread matching the engine-tick thread, but that is not proof for every game or server setup.
+`ProcessEvent` may run on multiple threads; the first-caller capture remains a heuristic, is logged as
+`ProcessEvent (fallback, unverified)`, and could select the wrong thread if another thread calls first. No dedicated-server
+or idle-server qualification is implied. Do not use `DefaultExecuteInGameThreadMethod` as a Python executor switch.
 
 ## Soak test
 `python/examples/soak_main.py` (test game): for `PYUE_SOAK_SECONDS` (default 45) four Python threads schedule work on the game

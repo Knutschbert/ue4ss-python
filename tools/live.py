@@ -26,6 +26,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from live_bridge import build_bridge  # noqa: E402
 from live_client import LiveClient, LiveClientError, client_from_environment  # noqa: E402
+import managed  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 MOD = ROOT / "dist" / "PythonScripting"
@@ -70,6 +71,61 @@ def install(mod: Path = MOD, session: Path = None, poll_ms: int = 250, say=print
         (session / folder).mkdir(parents=True, exist_ok=True)
     main_py.write_text(build_bridge(game_path(session / "inbox"), game_path(session / "outbox"), game_path(session / "alive"), poll_ms), encoding="utf-8")
     say(f"the bridge is installed as {main_py}. Start the game (or reload the script in a running game), then:  python tools/live.py status")
+
+
+def install_managed(
+    mod: Path,
+    session: Path,
+    *,
+    transport: str,
+    poll_ms: int,
+    port: int,
+    token_file: str | None,
+    dry_run: bool = False,
+    say=print,
+) -> None:
+    scripts = mod / "python_scripts"
+    main_py = scripts / "main.py"
+    if not scripts.is_dir():
+        raise LiveClientError(f"{scripts} does not exist: package the mod first")
+    if not dry_run:
+        managed.install(mod, say=say)
+    else:
+        managed.install(mod, say=say, dry_run=True)
+
+    file_config = None
+    if transport in ("file", "both"):
+        if not dry_run:
+            for folder in ("inbox", "outbox"):
+                (session / folder).mkdir(parents=True, exist_ok=True)
+        file_config = {
+            "inbox": game_path(session / "inbox"),
+            "outbox": game_path(session / "outbox"),
+            "heartbeat": game_path(session / "alive"),
+            "poll_ms": poll_ms,
+        }
+    socket_config = None
+    if transport in ("socket", "both"):
+        if not token_file:
+            raise LiveClientError("managed socket transport requires --token-file; provision it with a private token-file tool")
+        token_path = Path(token_file)
+        if not dry_run:
+            from ue4ss.live.security import validate_token_file
+
+            validate_token_file(token_path)
+        socket_config = {
+            "host": "127.0.0.1",
+            "port": port,
+            "token_file": game_path(token_path),
+        }
+    managed.configure_live(
+        mod,
+        transport=transport,
+        file_config=file_config,
+        socket_config=socket_config,
+        dry_run=dry_run,
+        token_to_validate=token_file,
+    )
 
 
 def uninstall(mod: Path = MOD, say=print) -> None:
@@ -155,6 +211,11 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     install_parser = sub.add_parser("install", help="make the bridge the mod's main.py")
     install_parser.add_argument("--poll-ms", type=int, default=250, help="how often the bridge looks for requests (default: %(default)s)")
+    install_parser.add_argument("--managed", action="store_true", help="install/use the stable managed bootstrap and register live as a component")
+    install_parser.add_argument("--transport", choices=("file", "socket", "both"), default="file",
+                                help="managed transport selection (file remains the default)")
+    install_parser.add_argument("--port", type=int, default=9000, help="managed loopback TCP listener port")
+    install_parser.add_argument("--dry-run", action="store_true", help="describe managed changes without writing files")
     sub.add_parser("uninstall", help="put your main.py back")
     sub.add_parser("status", help="is the bridge alive?")
     exec_parser = sub.add_parser("exec", help="run code in the game")
@@ -197,11 +258,39 @@ def main(argv=None) -> int:
             if getattr(client, "is_socket", False):
                 raise LiveClientError("install configures the local file bridge; use it without --endpoint")
             session = client.root
-            install(mod, session, poll_ms=args.poll_ms)
+            main_py = mod / "python_scripts" / "main.py"
+            is_managed = (
+                main_py.is_file()
+                and main_py.read_text(encoding="utf-8", errors="replace").startswith(managed.BOOTSTRAP_MARK)
+            )
+            if args.managed or is_managed:
+                install_managed(
+                    mod,
+                    session,
+                    transport=args.transport,
+                    poll_ms=args.poll_ms,
+                    port=args.port,
+                    token_file=args.token_file or os.environ.get("PYUE_LIVE_TOKEN_FILE"),
+                    dry_run=args.dry_run,
+                )
+            elif args.transport != "file":
+                raise LiveClientError("socket transport requires --managed so it can coexist with other scripts")
+            elif args.dry_run:
+                print(f"would install legacy file bridge as {main_py}; use --managed for component installation")
+            else:
+                install(mod, session, poll_ms=args.poll_ms)
         elif args.command == "uninstall":
             if getattr(client, "is_socket", False):
                 raise LiveClientError("uninstall configures the local file bridge; use it without --endpoint")
-            uninstall(mod)
+            main_py = mod / "python_scripts" / "main.py"
+            if main_py.is_file() and main_py.read_text(encoding="utf-8", errors="replace").startswith(managed.BOOTSTRAP_MARK):
+                manifest = managed._read_manifest(mod)
+                if managed.LIVE_NAME not in manifest["components"]:
+                    raise LiveClientError("managed live bridge is not configured")
+                managed.disable(mod, managed.LIVE_NAME)
+                print("managed live bridge disabled; the stable bootstrap and other components remain installed")
+            else:
+                uninstall(mod)
         elif args.command == "status":
             try:
                 response = client.request("status", timeout=min(args.timeout, 10.0))

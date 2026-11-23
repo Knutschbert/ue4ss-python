@@ -191,6 +191,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             for case, code in cases.items():
                 latencies: list[float] = []
                 execution: list[float] = []
+                residual: list[float] = []
                 for index in range(args.warmup + args.samples):
                     began = time.perf_counter()
                     response = client.request("execute", code=code, timeout=args.timeout)
@@ -199,13 +200,16 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                         raise RuntimeError(f"{case} request failed: {response!r}")
                     if index >= args.warmup:
                         latencies.append(elapsed)
-                        execution.append(float(response.get("duration", 0.0)))
+                        bridge_seconds = float(response.get("duration", 0.0))
+                        execution.append(bridge_seconds)
+                        residual.append(max(0.0, elapsed - bridge_seconds))
                     if scheduler.callback_error is not None:
                         _, error, traceback = scheduler.callback_error
                         raise error.with_traceback(traceback)
                 results[case] = {
                     "round_trip_ms": summary_ms(latencies),
                     "bridge_reported_execution_ms": summary_ms(execution),
+                    "estimated_non_execution_rtt_ms": summary_ms(residual),
                 }
 
             # Measure request-to-callback delay with a marker published just before
@@ -396,6 +400,7 @@ def run_testgame(args: argparse.Namespace) -> dict[str, Any]:
                 }.items():
                     latencies: list[float] = []
                     execution: list[float] = []
+                    residual: list[float] = []
                     for index in range(args.warmup + args.samples):
                         began = time.perf_counter()
                         response = client.request("execute", code=code, timeout=args.timeout)
@@ -404,10 +409,13 @@ def run_testgame(args: argparse.Namespace) -> dict[str, Any]:
                             raise RuntimeError(f"{case} request failed: {response!r}")
                         if index >= args.warmup:
                             latencies.append(elapsed)
-                            execution.append(float(response.get("duration", 0.0)))
+                            bridge_seconds = float(response.get("duration", 0.0))
+                            execution.append(bridge_seconds)
+                            residual.append(max(0.0, elapsed - bridge_seconds))
                     results[case] = {
                         "round_trip_ms": summary_ms(latencies),
                         "bridge_reported_execution_ms": summary_ms(execution),
+                        "estimated_non_execution_rtt_ms": summary_ms(residual),
                     }
                 callback_result = client.request(
                     "execute",

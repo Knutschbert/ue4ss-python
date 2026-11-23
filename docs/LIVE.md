@@ -2,10 +2,11 @@
 
 For exploring a game: type an expression in a terminal, see the result from the game, without editing `main.py` and
 without reloading. A small resident script in the game, the *bridge*, executes what you send.
+Headless/game-server executor caveats are in [HEADLESS.md](HEADLESS.md).
 
 ```
-python tools/live.py install       # once: the bridge becomes the mod's main.py (your main.py is kept)
-                                   # start the game, or reload the script in a running game
+python tools/live.py install --managed  # stable bootstrap + separately managed file bridge
+                                        # start the game, or reload the script in a running game
 python tools/live.py status
 python tools/live.py exec "len(ue4ss.find_all_of('Actor'))"
 python tools/live.py repl
@@ -24,12 +25,17 @@ PlayerStart /Game/Maps/Example.Example:PersistentLevel.PlayerStart_0
 
 (The values are an illustration.)
 
+The old standalone bridge remains available with `python tools/live.py install` (without `--managed`); it temporarily
+becomes `main.py` and uses file IPC. Managed installation keeps a stable entry point and lets the live bridge coexist
+with other managed scripts. File IPC is the default; socket transports require explicit selection and a private token
+file.
+
 ## Commands
 
 | Command | Does |
 |---|---|
-| `install [--poll-ms N]` | Writes the bridge as `dist\PythonScripting\python_scripts\main.py`. A `main.py` of yours is kept next to it as `main.py.before-live`. |
-| `uninstall` | Puts your `main.py` back. |
+| `install [--managed] [--transport file\|socket\|both]` | Installs the legacy entry bridge by default; `--managed` registers live without replacing `main.py` on updates. |
+| `uninstall` | Removes the legacy bridge, or disables only managed live when the stable bootstrap is installed. |
 | `status` | Says whether the bridge is alive (it writes a heartbeat file) and shows its state. |
 | `exec "<code>"`, `exec -f file.py`, `exec -` | Runs code in the game. An expression shows its value; `print` output and tracebacks are shown. |
 | `repl` | A prompt. A line ending in `:` starts a block, an empty line ends it. |
@@ -45,13 +51,14 @@ and `--session-dir <folder>` select a packaged mod and file session outside this
 tcp://127.0.0.1:PORT` or `--endpoint tcp://[::1]:PORT` selects the authenticated TCP client; pair it with
 `--token-file <private-file>`. `PYUE_LIVE_ENDPOINT` and `PYUE_LIVE_TOKEN_FILE` provide the corresponding environment
 configuration. Endpoint selection overrides `PYUE_LIVE_DIR`; explicit `--session-dir` selects the legacy file transport,
-while explicitly passing both `--endpoint` and `--session-dir` is an error. `install` and `uninstall` remain local
-file-bridge operations.
+while explicitly passing both `--endpoint` and `--session-dir` is an error. Install/uninstall change local files and
+managed configuration only; they do not launch a game.
 
 ## How it works
 
-- **In the game:** [`tools/live_bridge.py`](../tools/live_bridge.py) generates the bridge. It re-arms itself with
-  `ue4ss.execute_with_delay` every 250 ms, so it runs **on the game thread** and may touch game objects.
+- **In the game:** the legacy route uses [`tools/live_bridge.py`](../tools/live_bridge.py) to generate its main script.
+  Managed mode uses the packaged [`ue4ss.live.component`](../python/lib/ue4ss/live/component.py), which owns its
+  callbacks through the component context. File polling runs **on the game thread** and may touch game objects.
 - **Requests and responses are files.** The client writes a JSON request into `<session>\inbox`; the bridge runs the
   code with `exec` and writes the printed output, the value of the variable `result` and any traceback into
   `<session>\outbox`. Files are written under a temporary name and renamed, so neither side reads a half-written one.
@@ -61,14 +68,57 @@ file-bridge operations.
 - **The session folder** is `dist\PythonScripting\live`; the environment variable `PYUE_LIVE_DIR` names another one.
 - **One request at a time.** A request that arrives while another runs is rejected. Code that runs long freezes the
   game for that time, like any code on the game thread; start a job for long work (below).
-- **Authenticated TCP (opt-in client).** The TCP client uses the same request records and operations. Bind the game
-  listener to loopback and use SSH local forwarding for remote clients; file IPC remains the default. TCP endpoint
-  options do not make the MCP server install or start a listener.
+- **Authenticated TCP (opt-in).** The host TCP client uses the same request records and operations. Managed installation
+  can explicitly start an authenticated loopback listener; file IPC remains the default. Endpoint client options do not
+  themselves install a listener.
 
 Besides `execute`, the protocol has `job_start` / `job_status` (code that runs in a later tick while the bridge keeps
 answering), `wait_until` (block until an expression becomes true, re-evaluated across frames), `cleanup` (run callbacks
 registered under a group name), `travel` (open a level), `reload` and `stop`.
 [`tools/live_client.py`](../tools/live_client.py) is the client library the command-line tool uses.
+
+## Opt-in managed bootstrap
+
+To opt into a stable entry point for multiple managed components, first package the mod, then run:
+
+```powershell
+python tools\managed.py --dry-run install
+python tools\managed.py install
+python tools\live.py install --managed
+python tools\managed.py enable Demo --source path\to\Demo
+python tools\managed.py list
+python tools\live.py uninstall
+python tools\managed.py uninstall
+```
+
+For authenticated TCP, create and validate a private token on the game host:
+
+```powershell
+python tools\live_token.py create C:\Users\you\live-secrets\bridge.token
+python tools\live_token.py validate C:\Users\you\live-secrets\bridge.token
+python tools\live.py --token-file C:\Users\you\live-secrets\bridge.token install --managed --transport socket --port 9000
+```
+
+`--transport both` runs both adapters over one shared execution core. Each game instance needs its own port and token.
+
+A component source is a Python package directory containing `__init__.py` and exporting `start(ctx)`. The installer
+preserves an existing user `main.py` as `main.py.before-managed`; when migrating the generated legacy bridge, it
+preserves that bridge separately and leaves `main.py.before-live` untouched. Ambiguous backup collisions fail instead
+of overwriting either file. Repeated install is idempotent. Uninstall restores the previous entry point (or removes the
+bootstrap if there was none) and leaves managed sources/configuration intact.
+
+The bootstrap reads `managed_runtime/manifest.json` beside the mod's `python_scripts` folder. The default manifest has
+no enabled components. Components start in explicit `startup_order`; a component startup error is logged and does not
+prevent later components from starting. After a global UE4SS reload, startup waits asynchronously for old managed
+workers to exit and refuses unsafe startup after a bounded timeout. Store managed packages and the manifest under
+`managed_runtime/`; package refreshes preserve this local state and owner backups, while release archives exclude the
+entire directory so local paths and token-file references are not distributed. Do not put token contents in the manifest.
+The installer supports `--dry-run` before each modifying command; it never starts the game or writes a component source
+unless `enable` is explicitly invoked.
+
+`live.py install --managed` updates only the `LiveBridge` manifest component. Package refresh preserves the local
+settings and source; release archives omit them. The component imports packaged canonical helpers, not `tools/`.
+Disabling it leaves the bootstrap and other components unchanged.
 
 ## For AI assistants: the MCP server
 
@@ -171,20 +221,31 @@ own machine, and uninstall the bridge when you are done exploring ([SECURITY.md]
 
 ### TCP transport security contract
 
-Authenticated TCP support is being developed as an opt-in transport; the existing file bridge remains the default.
-The listener is restricted to numeric loopback addresses (`127.0.0.1` or `::1`) and requires a random bearer token
-stored in a separate restricted file. It is not encrypted TCP and is not a defense against a privileged local user.
-For cross-machine use, the intended path is an SSH local forward explicitly bound on the client side to loopback, for
-example `ssh -L 127.0.0.1:PORT:127.0.0.1:PORT user@game-host`; do not expose the listener to a LAN or public
-interface. The token must not be put in generated scripts, command-line arguments, URLs, or logs.
+Managed installation can explicitly enable a TCP listener with `--transport socket` or `--transport both`; file IPC
+remains the default. The listener binds numeric loopback only (`127.0.0.1` or `::1`) and requires a random bearer token
+in a separate restricted file. For cross-machine use, the SSH client's local bind and the game host's server bind are
+separate settings. For example, with a game listener on the host's loopback port 9000, forward a local loopback port
+19000 to it:
+
+```sh
+ssh -N -L 127.0.0.1:19000:127.0.0.1:9000 user@game-host
+python tools/live.py --endpoint tcp://127.0.0.1:19000 --token-file /private/path/live.token status
+```
+
+Do not expose either listener to a LAN or public interface. Create and validate the token on the game host with
+`tools/live_token.py`; the host client needs a protected copy to authenticate. The manifest stores a path reference,
+not token contents. Do not copy the token into generated scripts, command-line arguments, URLs, or logs. TCP itself is
+not encrypted and the token does not protect against privileged local users. Give each game instance a distinct port
+and token; a port conflict fails instead of sharing/reusing the listener. Container clients need a host-network route
+or an explicitly configured SSH tunnel: `127.0.0.1` inside a container is the container, not the host.
 
 The packaged framing/security helpers enforce a 1 MiB whole-frame limit, strict UTF-8 JSON, finite numeric values,
 strict request IDs, constant-time token comparison, and pre-authentication message restrictions. The packaged selector
 worker keeps socket I/O off the game thread and retains bounded request outcomes across reconnects within one bridge
 instance. Token provisioning uses an exclusive file create and fails closed unless POSIX mode/ownership or the current
 Windows user ACL can be verified. On WSL/DrvFS, use metadata-backed private permissions; a permissive mode report is
-rejected. The endpoint client is available in the CLI/MCP adapter, but the socket worker is not yet enabled by managed
-installation, and a supported token-provisioning CLI remains to be integrated.
+rejected. The endpoint client is available in the CLI/MCP adapter, and the managed socket worker is enabled only by
+explicit configuration.
 
 An admitted request is not cancelled when its client disconnects. Reconnect and query its outcome rather than
 replaying code; if the response is no longer retained or the bridge instance changed, the outcome is `unknown`.
@@ -195,3 +256,39 @@ disconnect around reload is not proof that the operation did not happen.
 
 The bridge and the client are tested against a simulated engine tick. The command-line tool and the MCP server were used
 against a real game (2026-11-11); what exactly is in [COMPATIBILITY.md](COMPATIBILITY.md#tools-of-this-repository).
+
+## Performance and soak harnesses
+
+```sh
+python tools/benchmark_live_transports.py \
+  --samples 1000 --warmup 10 --repeat 3 --poll-ms 50 --tcp-nodelay both \
+  --output /tmp/live-transport.json
+```
+
+This compares file IPC with real loopback TCP on a host-side queued game-thread stand-in.
+It reports cold TCP handshake separately; tiny, representative, near-limit result, immediate-wait and job workloads;
+RTT, queued game-thread delay, callback duration and bridge-reported execution percentiles; an estimated
+non-execution RTT remainder (not a pure serialization timer); TCP_NODELAY variants; and process RSS/native-handle/
+thread/GC-tracked-object snapshots at repeat boundaries. Keep the JSON artifacts with the platform/build and workload
+settings. The host benchmark is not a native game-frame or remote SSH measurement. For native startup/reload and
+game-process CPU/RSS, use
+`tools/benchmark_live.py --testgame` with the staged PyTestGame and its existing guarded main-script backup/restore.
+Do not turn these machine-sensitive measurements into CI latency thresholds.
+
+The socket test suite uses a queued game-thread fake and real loopback sockets. Its test cases exercise fragmented
+frames, authentication failures, duplicate/conflicting request IDs, disconnect/outcome recovery, slow peers, pending
+waits, reload handover and bounded shutdown. For longer native qualification runs, set these variables in the
+environment inherited by the Windows test runner:
+
+```powershell
+$env:PYUE_MANAGED_RELOAD_CYCLES = "100"
+python tools\testgame.py run managed_reload_main --timeout 1800
+$env:PYUE_MANAGED_SOAK_SECONDS = "1800"
+python tools\testgame.py run managed_runtime_soak_main --timeout 1900
+Remove-Item Env:PYUE_MANAGED_RELOAD_CYCLES, Env:PYUE_MANAGED_SOAK_SECONDS
+```
+
+The defaults are short smoke checks; these commands opt into 100 full reload handovers and a 30-minute live-file plus
+independent-component/worker coexistence soak. `soak_main.py` remains a separate native executor/actor-hook soak
+controlled by `PYUE_SOAK_SECONDS`. Neither the host benchmark nor PyTestGame claims idle dedicated-server progress;
+see [HEADLESS.md](HEADLESS.md) for target-server verification.

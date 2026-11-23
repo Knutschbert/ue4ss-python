@@ -8,6 +8,7 @@ import queue
 import sys
 import threading
 import time
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,7 @@ from live_client import (  # noqa: E402
     client_from_environment,
     parse_endpoint,
 )
+import live_client as live_client_module  # noqa: E402
 from ue4ss.live.core import LiveCore  # noqa: E402
 from ue4ss.live.security import provision_token  # noqa: E402
 from ue4ss.live.socket_transport import LiveSocketService  # noqa: E402
@@ -107,7 +109,7 @@ class GameQueue:
             pass
 
 
-def test_socket_client_performs_handshake_exec_and_explicit_outcome_query(tmp_path):
+def test_socket_client_performs_handshake_exec_and_explicit_outcome_query(tmp_path, monkeypatch):
     ue = GameQueue()
     core = LiveCore(lambda _event: None, ue_module=ue, world_name=lambda: "client-test")
     token = "client-token-" + "z" * 40
@@ -125,8 +127,17 @@ def test_socket_client_performs_handshake_exec_and_explicit_outcome_query(tmp_pa
     client = SocketLiveClient(
         f"tcp://{service.bound_address[0]}:{service.bound_address[1]}", token_file
     )
+    # Model a host clock 90 seconds ahead of the game server. The client must
+    # derive an RTT-aware offset and still send a deadline the server accepts.
+    wall_time = time.time
+    monkeypatch.setattr(
+        live_client_module,
+        "time",
+        SimpleNamespace(time=lambda: wall_time() + 90.0, monotonic=time.monotonic),
+    )
     try:
         assert client.ping()["instance_id"] == service.instance_id
+        assert client.clock_offset == pytest.approx(-90.0, abs=1.0)
         result = []
         errors = []
 

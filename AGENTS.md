@@ -51,6 +51,11 @@ The user installs the bridge once (`python tools/live.py install`) and starts th
 
 ## B. Changing this repository
 
+- When unsure about unfamiliar or platform-specific API behavior, search authoritative online documentation first
+  (official platform/runtime docs preferred). For a nontrivial or cross-platform question, spawn a research subagent
+  to independently find and cite the relevant primary sources; do not delegate local edits or duplicate the full task.
+  Summarize the finding and source in the work notes, then use the smallest safe local test needed to verify how this
+  project is affected.
 - Layout: `src/` the mod (C++, Windows only), `core/` header-only logic with host tests, `python/mock/ue4ss/` the
   off-game twin of the native module, `python/lib/ue4ss/` Python modules shipped with the mod, `python/typings/`
   generated base typings, `python/examples/` in-game test scripts, `tools/` build, install, test and release tools,
@@ -63,9 +68,10 @@ The user installs the bridge once (`python tools/live.py install`) and starts th
 - An API change touches several places that must stay equal: `src/`, the off-game module, `docs/API.md`, the base
   typings (`python3 -I tools/gen_base_stubs.py`), an in-game test script and its `manifest.json` entry
   ([CONTRIBUTING.md](CONTRIBUTING.md#changing-the-python-api)).
-- You cannot build the mod or run a game from Linux or WSL. Building needs Windows and the private UEPseudo repository;
-  the in-game tests run with `python tools\testgame.py all` on Windows. **Say plainly what you could not verify** (a
-  Windows build, an in-game run) instead of implying it was done.
+- The mod and game are Windows x64. From WSL, you may invoke the Windows build tools and tests when available, using a
+  drive-letter checkout path (not a `\\wsl.localhost\...` UNC path) and the private UEPseudo dependency. The native
+  build uses `tools\build.ps1`; the in-game test runner is `python tools\testgame.py all`. **Say plainly what you could
+  not verify** (a Windows build, an in-game run) instead of implying it was done.
 - Never start a game, install into one or replace DLLs in a game folder unless the user asked for exactly that.
 - Keep the repository game-independent: no game-specific code, no personal paths. Do not copy Unreal Engine source
   ([THIRD_PARTY.md](THIRD_PARTY.md)).

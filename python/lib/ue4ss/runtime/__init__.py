@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextvars
 import builtins
+import copy
 import hashlib
 import importlib.abc
 import importlib.machinery
@@ -21,7 +22,7 @@ import threading
 import time
 import traceback
 import weakref
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
@@ -117,10 +118,12 @@ class ComponentContext:
         *,
         parent: "ComponentContext | None" = None,
         root_state: dict[str, str] | None = None,
+        config: dict[str, Any] | None = None,
     ):
         self.name = name
         self.instance_id = next(_instance_ids)
         self.generation = generation
+        self.config = copy.deepcopy(config or {})
         self.parent = parent
         self._root_state = root_state or {"value": ComponentState.STARTING}
         self._valid = True
@@ -537,6 +540,7 @@ class _ManagedScript:
     module: Any = None
     state: str = ComponentState.STOPPED
     error: str | None = None
+    config: dict[str, Any] = field(default_factory=dict)
 
 
 class ScriptRuntime:
@@ -595,7 +599,12 @@ class ScriptRuntime:
             starter = getattr(module, "start", None)
             if not callable_builtin(starter):
                 raise TypeError(f"managed script {script.name!r} must export start(ctx)")
-            context = self.manager.start(script.name, starter)
+            context = self.manager.start(
+                script.name,
+                starter,
+                config=script.config,
+                script_runtime=self,
+            )
             script.context = context
             script.state = context.state
             script.error = None
@@ -639,10 +648,18 @@ class ScriptRuntime:
         """Load a bounded, session-only source payload (alias for ``load_source``)."""
         return self.load_source(name, source)
 
-    def load_local(self, name: str, package: str | os.PathLike[str]) -> ComponentContext:
+    def load_local(
+        self,
+        name: str,
+        package: str | os.PathLike[str],
+        *,
+        config: dict[str, Any] | None = None,
+    ) -> ComponentContext:
         """Start a local package directory, constrained to a configured root."""
         self.manager._require_game_thread()
         self._validate_name(name)
+        if config is not None and not isinstance(config, dict):
+            raise TypeError("component config must be a dict or None")
         package_path = Path(package).resolve()
         if not any(_is_relative_to(package_path, root) for root in self.roots):
             raise ValueError(f"managed package must be under a configured root: {package_path}")
@@ -652,7 +669,7 @@ class ScriptRuntime:
         existing = self._scripts.get(name)
         if existing is not None and existing.state in (ComponentState.RUNNING, ComponentState.STOPPING):
             raise RuntimeError(f"script {name!r} is already {existing.state}; use reload()")
-        script = _ManagedScript(name, tree, "local")
+        script = _ManagedScript(name, tree, "local", config=copy.deepcopy(config or {}))
         self._scripts[name] = script
         return self._start_record(script)
 
@@ -725,7 +742,9 @@ class ScriptRuntime:
             if context is not None:
                 raise RuntimeError(f"script {name!r} is still stopping; reload will not overlap instances")
         self._unload_modules(old)
-        replacement = _ManagedScript(name, candidate, old.source_kind)
+        replacement = _ManagedScript(
+            name, candidate, old.source_kind, config=copy.deepcopy(old.config)
+        )
         self._scripts[name] = replacement
         return self._start_record(replacement)
 
@@ -871,13 +890,22 @@ class RuntimeManager:
             if context.state in (ComponentState.STOPPED, ComponentState.FAILED):
                 del self._components[name]
 
-    def start(self, name: str, starter: Callable[[ComponentContext], Any]) -> ComponentContext:
+    def start(
+        self,
+        name: str,
+        starter: Callable[[ComponentContext], Any],
+        *,
+        config: dict[str, Any] | None = None,
+        script_runtime: ScriptRuntime | None = None,
+    ) -> ComponentContext:
         """Start a named component, rolling back partial ownership if startup raises."""
         self._require_game_thread()
         if not isinstance(name, str) or not name:
             raise ValueError("component name must be a non-empty string")
         if not callable_builtin(starter):
             raise TypeError("starter must be callable")
+        if config is not None and not isinstance(config, dict):
+            raise TypeError("component config must be a dict or None")
         self._refresh()
         previous = self._components.get(name)
         if previous is not None:
@@ -886,7 +914,8 @@ class RuntimeManager:
                 raise RuntimeError(f"component {name!r} is still stopping; restart is not yet safe")
             raise RuntimeError(f"component {name!r} is already {state}")
         self._generation += 1
-        context = ComponentContext(name, self._generation)
+        context = ComponentContext(name, self._generation, config=config)
+        context.script_runtime = script_runtime
         self._components[name] = context
         context._root_state["value"] = ComponentState.STARTING
         try:

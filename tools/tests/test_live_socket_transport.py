@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import os
 import queue
 import socket
 import sys
@@ -354,6 +355,21 @@ def test_auth_failure_never_schedules_game_thread_work(service):
     client.close()
 
 
+def test_disconnect_during_partial_header_never_admits_game_thread_work(service):
+    live, _core, ue, token = service
+    client, _decoder = connect_authenticated(live, token)
+    try:
+        client.sendall(b"\x00\x00")
+    finally:
+        client.close()
+
+    deadline = time.monotonic() + 1
+    while live.health["connections"] and time.monotonic() < deadline:
+        time.sleep(0.005)
+    assert live.health["connections"] == 0
+    assert ue.calls == 0
+
+
 def test_discarded_native_game_thread_callback_becomes_unknown_not_a_blocking_wait(service):
     live, core, ue, token = service
     client, decoder = connect_authenticated(live, token)
@@ -386,6 +402,41 @@ def test_discarded_native_game_thread_callback_becomes_unknown_not_a_blocking_wa
         client.close()
 
 
+def test_stalled_game_thread_callback_admission_is_bounded(service):
+    live, core, ue, token = service
+    live.max_pending_callbacks = 1
+    # The production core ordinarily admits only one foreground operation.
+    # Bypass that separate policy here to isolate the transport's callback cap.
+    core.reserve_foreground = lambda _request_id, **_kwargs: True
+    core._release_foreground = lambda _request_id: None
+    client, decoder = connect_authenticated(live, token)
+    try:
+        for request_id in ("queued-one", "queued-two"):
+            request = make_request(code="result = 1", request_id=request_id, timeout=5)
+            client.sendall(encode_frame({
+                "version": 1,
+                "kind": "request",
+                "id": request["id"],
+                "payload": {"request": request},
+            }))
+
+        rejected = receive_envelope(
+            client,
+            decoder,
+            predicate=lambda item: item.get("kind") == "event"
+            and item.get("payload", {}).get("response", {}).get("id") == "queued-two",
+        )
+        response = rejected["payload"]["response"]
+        assert response["status"] == "rejected"
+        assert response["error"]["type"] == "Busy"
+        assert "capacity is full" in response["error"]["message"]
+        assert ue.calls == 1
+        assert live.health["pending_callbacks"] == 1
+        assert core.scope.get("result") is None  # stalled game thread has not run queued work
+    finally:
+        client.close()
+
+
 def test_live_stop_flushes_terminal_ack_before_worker_shutdown(service):
     live, _core, ue, token = service
     client, decoder = connect_authenticated(live, token)
@@ -404,6 +455,131 @@ def test_live_stop_flushes_terminal_ack_before_worker_shutdown(service):
         assert live._stop_event.is_set()
     finally:
         client.close()
+
+
+def test_worker_handover_releases_listener_and_dropped_old_callback_cannot_run_after_reload():
+    """Model native reload clearing queued Futures before binding the new service."""
+    ue = QueuedUe()
+    old_core = LiveCore(lambda _event: None, ue_module=ue, world_name=lambda: "old")
+    old = LiveSocketService(old_core, "old-worker-token-" + "a" * 32, port=0, ue_module=ue)
+    old_stop = threading.Event()
+    old_thread = threading.Thread(target=old.run, args=(old_stop,), daemon=True)
+    old_thread.start()
+    deadline = time.monotonic() + 2
+    while old.bound_address is None and old.error is None and time.monotonic() < deadline:
+        time.sleep(0.005)
+    assert old.bound_address is not None, old.error
+    port = old.bound_address[1]
+
+    client = socket.create_connection(old.bound_address, timeout=1)
+    client.settimeout(0.05)
+    decoder = FrameDecoder()
+    receive_envelope(client, decoder)  # hello
+    client.sendall(encode_frame({
+        "version": 1, "kind": "auth",
+        "payload": {"token": "old-worker-token-" + "a" * 32},
+    }))
+    receive_envelope(client, decoder, predicate=lambda item: item.get("kind") == "auth")
+    record = make_request(
+        code="result = 'stale generation ran'",
+        request_id="reload-stale",
+        timeout=5,
+    )
+    client.sendall(encode_frame({
+        "version": 1, "kind": "request", "id": record["id"],
+        "payload": {"request": record},
+    }))
+    deadline = time.monotonic() + 1
+    while ue.calls == 0 and time.monotonic() < deadline:
+        time.sleep(0.005)
+    assert ue.calls == 1
+    old_future = ue.futures[-1]
+
+    # This mirrors the order of managed global reload: stop listeners without a
+    # join on the game thread, then native clear_pending cancels the old callback.
+    # Close the client first so the server has observed its FIN before the
+    # listener is stopped. An active accepted connection may keep an exclusive
+    # bind unavailable after close (Winsock explicitly documents this case).
+    client.close()
+    old.request_stop()
+    old_thread.join(timeout=2)
+    assert not old_thread.is_alive()
+    assert old_future.cancel()
+    assert ue.pump_one()  # old maintenance callback observes its stopped flag
+    assert ue.pump_one()  # cancelled dispatch callback must not execute
+    assert old_core.scope.get("result") is None
+    assert old_core.reserve_foreground("after-reload") is True
+    old_core._release_foreground("after-reload")
+
+    new_core = LiveCore(lambda _event: None, ue_module=ue, world_name=lambda: "new")
+    new = LiveSocketService(new_core, "new-worker-token-" + "b" * 32, port=port, ue_module=ue)
+    new_stop = threading.Event()
+    new_thread = threading.Thread(target=new.run, args=(new_stop,), daemon=True)
+    new_thread.start()
+    try:
+        deadline = time.monotonic() + 2
+        while new.bound_address is None and new.error is None and time.monotonic() < deadline:
+            time.sleep(0.005)
+        assert new.bound_address is not None, new.error
+        assert new.bound_address[1] == port
+        assert new.instance_id != old.instance_id
+        new_client, _ = connect_authenticated(new, "new-worker-token-" + "b" * 32)
+        new_client.close()
+        assert old_core.scope.get("result") is None
+    finally:
+        new.request_stop()
+        new_thread.join(timeout=2)
+        assert not new_thread.is_alive()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows exclusive-bind accepted-peer handover")
+def test_windows_worker_rebinds_after_stopping_with_idle_accepted_peer():
+    ue = QueuedUe()
+    core = LiveCore(lambda _event: None, ue_module=ue, world_name=lambda: "handover")
+    old = LiveSocketService(core, "old-worker-token-" + "a" * 32, port=0, ue_module=ue)
+    old_stop = threading.Event()
+    old_thread = threading.Thread(target=old.run, args=(old_stop,), daemon=True)
+    old_thread.start()
+    client = None
+    try:
+        deadline = time.monotonic() + 2
+        while old.bound_address is None and old.error is None and time.monotonic() < deadline:
+            time.sleep(0.005)
+        assert old.bound_address is not None, old.error
+        port = old.bound_address[1]
+        client = socket.create_connection(old.bound_address, timeout=1)
+        client.settimeout(1)
+        receive_envelope(client, FrameDecoder())  # leave an accepted peer active
+        old.request_stop()
+        old_thread.join(timeout=2)
+        assert not old_thread.is_alive()
+
+        replacement = LiveSocketService(
+            LiveCore(lambda _event: None, ue_module=ue, world_name=lambda: "replacement"),
+            "new-worker-token-" + "b" * 32,
+            port=port,
+            ue_module=ue,
+        )
+        replacement_stop = threading.Event()
+        replacement_thread = threading.Thread(
+            target=replacement.run, args=(replacement_stop,), daemon=True
+        )
+        replacement_thread.start()
+        try:
+            deadline = time.monotonic() + 2
+            while replacement.bound_address is None and replacement.error is None and time.monotonic() < deadline:
+                time.sleep(0.005)
+            assert replacement.bound_address is not None, replacement.error
+        finally:
+            replacement.request_stop()
+            replacement_thread.join(timeout=2)
+            assert not replacement_thread.is_alive()
+    finally:
+        if client is not None:
+            client.close()
+        if old_thread.is_alive():
+            old.request_stop()
+            old_thread.join(timeout=2)
 
 
 def test_event_handoff_is_bounded_and_reserves_space_for_terminal_responses():

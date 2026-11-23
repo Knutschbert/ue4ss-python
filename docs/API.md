@@ -311,6 +311,8 @@ package; for session source, it reexecutes the current source. Supplying
 `source=...` to `reload` replaces session-loaded source. Syntax is checked before
 the old component is stopped; a replacement startup failure rolls back its new
 resources and leaves that component failed while peers continue.
+`load_local(..., config=mapping)` deep-copies the mapping onto `ctx.config`;
+components may mutate their copy without changing the caller's configuration.
 
 `load_source(name, source)` accepts one UTF-8 file up to 128 KiB and runs it in
 memory. This is the live/remote-load path: it is session-only and does not write
@@ -577,7 +579,15 @@ startup self check; do not use them in scripts.
   that this happens before the game thread is known, one block is leaked.
 * **Hooks and tasks that run too long freeze the game**; there is no time limit yet; `set_slow_callback_warning` reports slow ones.
 
+## Third-party pure-Python packages
+
+The embedded CPython 3.12 interpreter searches `<mod>/site-packages` after the bundled standard library, the mod's
+`dlls` directory, and `python_scripts`. Install packages there with a matching CPython 3.12 x64 `pip --target` command;
+the folder is retained when the mod is repackaged. The interpreter is isolated and does not load host/user site
+directories or `.pth` files. Only pure-Python packages are supported: compiled `.pyd` modules, packages requiring a
+different CPython ABI, and external DLL dependencies are not supported. Treat packages as executable code and install
+only trusted sources.
+
 ## Not available yet
 
-* Installing third-party packages (pip wheels); the standard library is complete.
 * More than one entry script: `main.py` is the only file the mod runs by itself (it can import others).

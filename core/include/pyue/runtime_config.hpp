@@ -11,6 +11,7 @@ namespace pyue
     //
     //   <mod>/dlls/main.dll, python312.dll, python312.zip, *.pyd   <- home
     //   <mod>/python_scripts/main.py                               <- scripts_dir
+    //   <mod>/site-packages/                                       <- optional local packages
     //
     // The folder must not be called "scripts": UE4SS treats any mod folder containing a
     // scripts directory (case-insensitive) as a Lua mod and complains about the missing main.lua.
@@ -35,8 +36,13 @@ namespace pyue
         config.scripts_dir = scripts_dir;
         config.main_script = scripts_dir / "main.py";
         // Order matters: stdlib first, then extension modules (.pyd live next to the dlls),
-        // then user scripts, so a script cannot shadow a stdlib module by accident.
-        config.module_search_paths = {dlls_dir / stdlib_zip_name, dlls_dir, scripts_dir};
+        // then scripts and user packages. User paths cannot shadow stdlib modules.
+        config.module_search_paths = {
+                dlls_dir / stdlib_zip_name,
+                dlls_dir,
+                scripts_dir,
+                dlls_dir.parent_path() / "site-packages",
+        };
         return config;
     }
 

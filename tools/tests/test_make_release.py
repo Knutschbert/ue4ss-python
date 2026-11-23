@@ -175,6 +175,26 @@ class ReleaseZipTest(unittest.TestCase):
             (empty / "python_scripts").mkdir()
             self.assertIn("PythonScripting/python_scripts/main.py", dict(make_release.collect(empty, "9.9", "x", None)))
 
+    def test_managed_local_state_is_never_included_in_release_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            mod = build_mod(Path(tmp))
+            component = mod / "managed_runtime" / "components" / "Demo"
+            component.mkdir(parents=True)
+            (mod / "managed_runtime" / "manifest.json").write_text(
+                '{"components":{"live":{"config":{"token_file":"C:/Users/private/live.token"}}}}'
+            )
+            (component / "__init__.py").write_text("def start(ctx): pass")
+            package = mod / "site-packages" / "private_demo"
+            package.mkdir(parents=True)
+            (package / "__init__.py").write_text("secret = True\n")
+            entries = dict(make_release.collect(mod, "9.9", "x", None))
+            self.assertFalse(
+                any(name.startswith("PythonScripting/managed_runtime/") for name in entries)
+            )
+            self.assertFalse(
+                any(name.startswith("PythonScripting/site-packages/") for name in entries)
+            )
+
     def test_verify_detects_a_changed_member(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

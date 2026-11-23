@@ -13,6 +13,7 @@ from tempfile import TemporaryDirectory
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import live  # noqa: E402
+import managed  # noqa: E402
 from live_client import LiveClient, LiveClientError  # noqa: E402
 
 
@@ -98,6 +99,44 @@ class LiveCliTest(unittest.TestCase):
     def test_cli_uses_a_foreign_mod_and_session_folder(self):
         self.assertEqual(live.main(["--mod-dir", str(self.mod), "--session-dir", str(self.session), "install"]), 0)
         self.assertTrue(self.main_py.read_text(encoding="utf-8").startswith(live.BRIDGE_MARK))
+        self.assertTrue((self.session / "inbox").is_dir())
+
+    def test_managed_cli_install_and_uninstall_change_only_live_component_config(self):
+        self.main_py.write_text("print('user main')\n", encoding="utf-8")
+        self.assertEqual(
+            live.main([
+                "--mod-dir", str(self.mod),
+                "--session-dir", str(self.session),
+                "install",
+                "--managed",
+            ]),
+            0,
+        )
+        stable_main = self.main_py.read_bytes()
+        self.assertTrue(stable_main.startswith(managed.BOOTSTRAP_MARK.encode("utf-8")))
+        self.assertEqual(
+            (self.main_py.with_name(managed.BACKUP_NAME)).read_text(encoding="utf-8"),
+            "print('user main')\n",
+        )
+        manifest_path = self.mod / managed.STATE_DIR / managed.MANIFEST
+        manifest = __import__("json").loads(manifest_path.read_text(encoding="utf-8"))
+        live_component = manifest["components"][managed.LIVE_NAME]
+        self.assertTrue(live_component["enabled"])
+        self.assertEqual(live_component["config"]["transport"], "file")
+        self.assertEqual(live_component["config"]["file"]["poll_ms"], 250)
+
+        sibling = Path(self._tmp.name) / "source" / "Other"
+        sibling.mkdir(parents=True)
+        (sibling / "__init__.py").write_text("def start(ctx): pass\n", encoding="utf-8")
+        managed.enable(self.mod, "Other", sibling)
+        self.assertEqual(
+            live.main(["--mod-dir", str(self.mod), "--session-dir", str(self.session), "uninstall"]),
+            0,
+        )
+        manifest = __import__("json").loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertFalse(manifest["components"][managed.LIVE_NAME]["enabled"])
+        self.assertTrue(manifest["components"]["Other"]["enabled"])
+        self.assertEqual(self.main_py.read_bytes(), stable_main)
         self.assertTrue((self.session / "inbox").is_dir())
 
     def test_code_runs_in_the_game_and_output_values_and_state_come_back(self):

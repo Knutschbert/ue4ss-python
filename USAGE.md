@@ -69,10 +69,21 @@ checkout, `python tools\follow_log.py` shows these lines live. If not:
           spawn.py
   ```
 
-  The import path is, in this order: the bundled standard library, the mod's `dlls` folder, `python_scripts`. A file
-  named like a standard-library module (`json.py`, `random.py`) is therefore never picked up; choose another name.
-- **The whole standard library is available** (`json`, `threading`, `socket`, `sqlite3`, `ctypes`, ...). Installing
-  third-party packages with pip is not supported yet.
+  The import path is, in this order: the bundled standard library, the mod's `dlls` folder, `python_scripts`, then the
+  mod's `site-packages` folder. A file named like a standard-library module (`json.py`, `random.py`) is therefore never
+  picked up; choose another name.
+- **Pure-Python third-party packages** can be installed into `<mod>\site-packages`. Use a normal CPython 3.12 x64
+  installation to install only trusted packages and their dependencies:
+
+  ```powershell
+  py -3.12 -m pip install --target "...\Mods\PythonScripting\site-packages" PACKAGE
+  ```
+
+  The package folder survives `tools\package_mod.py` refreshes. The embedded interpreter is isolated: it does not read
+  your system or user `site-packages`, environment variables, or `.pth` startup files. Packages that require compiled
+  extension modules (`.pyd`), a different Python version/ABI, or external DLLs are not supported. Package imports run
+  arbitrary Python code; install only packages you trust.
+- **The whole standard library is available** (`json`, `threading`, `socket`, `sqlite3`, `ctypes`, ...).
 - **`main.py` ends, your registrations stay.** Hooks, key bindings and delayed tasks keep working after the script
   finished. A script is usually: look things up, register callbacks, return.
 

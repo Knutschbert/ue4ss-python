@@ -61,6 +61,7 @@ class SocketLiveClient:
         *,
         connect_timeout: float = 3.0,
         poll: float = 0.02,
+        tcp_nodelay: bool = True,
     ):
         self.endpoint = endpoint
         self.host, self.port = parse_endpoint(endpoint)
@@ -70,6 +71,7 @@ class SocketLiveClient:
             raise LiveClientError(f"cannot use TCP token file: {error}") from error
         self.connect_timeout = connect_timeout
         self.poll = poll
+        self.tcp_nodelay = bool(tcp_nodelay)
         self.instance_id: str | None = None
         self.clock_offset: float | None = None
         self._request_instances: OrderedDict[str, str] = OrderedDict()
@@ -78,6 +80,7 @@ class SocketLiveClient:
         before = time.time()
         try:
             sock = socket.create_connection((self.host, self.port), timeout=self.connect_timeout)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, int(self.tcp_nodelay))
             sock.settimeout(self.connect_timeout)
             decoder = FrameDecoder()
             hello = self._receive(sock, decoder, time.monotonic() + self.connect_timeout)

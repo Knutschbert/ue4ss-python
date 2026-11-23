@@ -171,6 +171,15 @@ def collect(mod_dir: Path, version: str, ue4ss_ref: str, api_doc: Optional[Path]
     for path in sorted(mod_dir.rglob("*")):
         if path.is_file():
             relative = path.relative_to(mod_dir).as_posix()
+            # Managed sources/config and installed third-party packages are
+            # per-install state; never leak them into a distributable archive.
+            if (
+                relative == "managed_runtime"
+                or relative.startswith("managed_runtime/")
+                or relative == "site-packages"
+                or relative.startswith("site-packages/")
+            ):
+                continue
             if path.suffix.lower() == ".pdb":   # the PDB is for in-game crash diagnosis, not the release
                 continue
             # a developer's own main.py must not ship: the release gets a stub the user replaces with their script

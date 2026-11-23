@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 import secrets
 import stat
 import subprocess
+import tempfile
 from pathlib import Path
 
 MIN_TOKEN_BYTES = 32
@@ -56,34 +58,63 @@ def _set_windows_acl(path: Path, grant: str) -> None:
             ["icacls", str(path), "/inheritance:r", "/grant:r", f"*{sid}:{grant}"],
             capture_output=True, text=True, errors="replace", timeout=10, check=True,
         )
-        result = subprocess.run(
-            ["icacls", str(path)],
+        # Windows user profile/temp directories commonly carry explicit SYSTEM,
+        # Administrators and OWNER RIGHTS ACEs. /inheritance:r removes inherited
+        # entries but, per icacls semantics, intentionally leaves explicit ACEs.
+        # Remove these known local defaults; verification below still fails closed
+        # for any other principal.
+        subprocess.run(
+            [
+                "icacls", str(path), "/remove:g",
+                "*S-1-5-18",       # LOCAL SYSTEM
+                "*S-1-5-32-544",   # BUILTIN\\Administrators
+                "*S-1-3-4",        # OWNER RIGHTS
+            ],
             capture_output=True, text=True, errors="replace", timeout=10, check=True,
         )
     except (OSError, subprocess.SubprocessError) as error:
         raise TokenSecurityError("cannot set and verify a restricted token-file ACL") from error
-    ace_lines = [
-        line.strip() for line in result.stdout.splitlines()
-        if ":(" in line and not line.lstrip().startswith("Successfully")
-    ]
-    if not ace_lines or any(not line.upper().startswith(sid.upper() + ":") for line in ace_lines):
-        raise TokenSecurityError("token-file ACL grants access beyond the current user SID")
+    _check_windows_acl(path)
+
+
+def _windows_acl_sids(path: Path) -> list[str]:
+    """Read trustee SIDs from icacls' saved DACL format, independent of UI locale."""
+    try:
+        with tempfile.TemporaryDirectory(prefix="ue4ss-live-acl-") as temporary:
+            acl_file = Path(temporary) / "dacl.txt"
+            subprocess.run(
+                ["icacls", str(path), "/save", str(acl_file)],
+                capture_output=True, text=True, errors="replace", timeout=10, check=True,
+            )
+            raw = acl_file.read_bytes()
+    except (OSError, subprocess.SubprocessError) as error:
+        raise TokenSecurityError("cannot verify token-file ACL") from error
+    try:
+        if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+            text = raw.decode("utf-16")
+        elif b"\x00" in raw:
+            text = raw.decode("utf-16le")
+        else:
+            text = raw.decode("utf-8", errors="strict")
+    except UnicodeError as error:
+        raise TokenSecurityError("Windows returned an unrecognized ACL encoding") from error
+
+    records = re.findall(r"\(([^()]*)\)", text)
+    if not records:
+        return []
+    sids = []
+    for record in records:
+        fields = record.split(";")
+        if len(fields) != 6 or not fields[-1]:
+            raise TokenSecurityError("Windows returned an unrecognized ACL entry")
+        sids.append(fields[-1].upper())
+    return sids
 
 
 def _check_windows_acl(path: Path) -> None:
     sid = _windows_user_sid()
-    try:
-        result = subprocess.run(
-            ["icacls", str(path)],
-            capture_output=True, text=True, errors="replace", timeout=10, check=True,
-        )
-    except (OSError, subprocess.SubprocessError) as error:
-        raise TokenSecurityError("cannot verify token-file ACL") from error
-    ace_lines = [
-        line.strip() for line in result.stdout.splitlines()
-        if ":(" in line and not line.lstrip().startswith("Successfully")
-    ]
-    if not ace_lines or any(not line.upper().startswith(sid.upper() + ":") for line in ace_lines):
+    ace_sids = _windows_acl_sids(path)
+    if not ace_sids or any(ace_sid != sid.upper() for ace_sid in ace_sids):
         raise TokenSecurityError("token-file ACL is not restricted to the current user SID")
 
 

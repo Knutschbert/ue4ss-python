@@ -209,6 +209,24 @@ def test_local_packages_must_be_under_configured_root_and_have_entrypoint(tmp_pa
     assert isinstance(error, ValueError)
 
 
+def test_local_component_config_is_available_as_an_isolated_context_copy(tmp_path):
+    package = tmp_path / "allowed" / "configured"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text(
+        "def start(ctx):\n"
+        "    ctx.config['nested']['value'] = 99\n",
+        encoding="utf-8",
+    )
+    supplied = {"nested": {"value": 1}}
+    runtime = ScriptRuntime(roots=(tmp_path / "allowed",))
+    context = on_game_thread(
+        lambda: runtime.load_local("Configured", package, config=supplied)
+    )
+    assert supplied == {"nested": {"value": 1}}
+    assert context.config == {"nested": {"value": 99}}
+    on_game_thread(lambda: runtime.manager.stop_all())
+
+
 def test_global_reload_stops_managed_components_before_new_main_and_drops_old_work():
     runtime = ScriptRuntime()
     events = []

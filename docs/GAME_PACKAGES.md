@@ -66,4 +66,8 @@ notice `ue4ss.script_generation()` themselves.
 
 - One `python_scripts/main.py` entry script is supported.
 - Packages installed with pip are for development only; third-party wheels are not available to the embedded runtime.
-- Game packages are copied next to `main.py` by `--library`; a separate runtime library folder is not supported yet.
+- Game packages passed with `--library` are copied next to `main.py`; a general shared runtime-library folder for those
+  packages is not supported yet.
+- The opt-in managed bootstrap is separate: its component packages and local manifest live in the mod's
+  `managed_runtime/` folder. See [LIVE.md](LIVE.md#opt-in-managed-bootstrap); do not place that local configuration in a
+  distributable game package.

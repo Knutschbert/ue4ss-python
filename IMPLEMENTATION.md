@@ -24,7 +24,7 @@ Write a **UE4SS C++ mod** (UE4SS loads C++ mods as DLLs) that embeds CPython and
 
 ## Threading facts (verified)
 - `on_update` is dispatched from UE4SS's own update loop (`UE4SSProgram.cpp`, sleeps 5 ms per iteration). It is **not** the game thread.
-- Game-thread entry points: `Unreal::Hook::RegisterEngineTickPostCallback` (guard with `UE4SSRuntime::IsEngineTickAvailable()`) and a ProcessEvent hook. Lua's `ExecuteInGameThread` queues actions and drains them from one of these (`GameThreadExecutionMethod::{ProcessEvent, EngineTick}`, default from settings `DefaultExecuteInGameThreadMethod`). Our executor must do the same.
+- Game-thread entry points: `Unreal::Hook::RegisterEngineTickPostCallback` (guard with `UE4SSRuntime::IsEngineTickAvailable()`) and a ProcessEvent hook. Lua's `ExecuteInGameThread` queues actions and selects its drain method with the UE4SS Lua setting `DefaultExecuteInGameThreadMethod`. The Python executor is separate: it prefers EngineTick and uses ProcessEvent only when EngineTick is unavailable or `PYUE_EXECUTOR=processevent` explicitly forces that fallback. The fallback captures the first ProcessEvent caller as the presumed game thread, which is a heuristic, not a general server-safety guarantee.
 
 ## Platform
 - The game and the injected DLL are Windows x64. The mod must be a Windows PE DLL, and the embedded Python must be the Windows build (`python3XX.dll`, embeddable distribution).
