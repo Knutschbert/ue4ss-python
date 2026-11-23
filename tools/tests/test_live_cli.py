@@ -37,16 +37,20 @@ class LiveCliTest(unittest.TestCase):
     def start_game(self):
         """Run the installed main.py like the game would: on a 'game thread' that ticks the scheduler."""
         schedule, lock = [], threading.Lock()
+        game_thread_id = []
         fake = types.ModuleType("ue4ss")
         fake.execute_with_delay = lambda delay, fn: schedule.append((time.monotonic() + delay / 1000.0, fn))
         fake.reload = lambda: None
         fake.find_first_of = lambda name: None
         fake.find_all_of = lambda name: ["a", "b", "c"]
+        fake.is_game_thread = lambda: bool(game_thread_id) and threading.get_ident() == game_thread_id[0]
         fake.UEError = type("UEError", (Exception,), {})
+        fake.__path__ = [str(Path(__file__).resolve().parents[2] / "python" / "lib" / "ue4ss")]
         sys.modules["ue4ss"] = fake
         source = self.main_py.read_text(encoding="utf-8")
 
         def game_thread():
+            game_thread_id.append(threading.get_ident())
             with contextlib.redirect_stdout(io.StringIO()):
                 exec(compile(source, "main.py", "exec"), {"__name__": "__main__"})
             while not self.stop_ticking.is_set():

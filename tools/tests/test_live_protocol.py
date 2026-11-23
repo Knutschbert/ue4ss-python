@@ -74,3 +74,17 @@ class LiveProtocolTest(unittest.TestCase):
         for operation in ("reset", "job_start", "job_status", "job_result", "cleanup", "reload", "status", "travel", "stop"):
             request = live_protocol.make_request(operation, request_id=operation, now=1)
             self.assertEqual(live_protocol.validate_request(request, now=1)["operation"], operation)
+
+    def test_protocol_is_imported_from_the_packaged_canonical_module(self):
+        self.assertEqual(live_protocol.make_request.__module__, "ue4ss.live.protocol")
+
+    def test_non_finite_protocol_numbers_and_payload_values_are_rejected(self):
+        for timeout in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(timeout=timeout), self.assertRaises(live_protocol.ProtocolError):
+                live_protocol.make_request(code="x", timeout=timeout)
+        with self.assertRaises(live_protocol.ProtocolError):
+            live_protocol.make_request("status", args={"bad": float("nan")})
+        with self.assertRaises(live_protocol.ProtocolError):
+            live_protocol.make_response("r1", "ok", duration=float("inf"))
+        with self.assertRaises(live_protocol.ProtocolError):
+            live_protocol.make_response("r1", "ok", result=float("nan"))

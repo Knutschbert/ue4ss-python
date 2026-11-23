@@ -4,6 +4,7 @@
 
 - `ue4ss.runtime`: explicit component/resource ownership scopes, private managed source/package loading, independent reload, guarded callbacks and nonblocking worker stop signals.
 - Full reload now disposes already-loaded managed components before native cleanup, gates restart on a bounded worker handover, and cancels futures for discarded game-thread work.
+- Live bridge execution now uses the packaged `ue4ss.live` core and canonical protocol with a thin atomic-file adapter, bounded capture/results, and independent wait maintenance.
 - `ue4ss.bytecode` knows the last two script tokens of engine 4.25 (`0x6C`, `0x6D`).
 - MCP server for the live bridge: `.mcp.json`, clear answers without a running game, `live_wait_ready`; `AGENTS.md` for agents.
 - `docs/ENGINE_VERSIONS.md`: which engine versions are supported and how to add one.

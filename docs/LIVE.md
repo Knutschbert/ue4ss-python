@@ -117,7 +117,11 @@ example) pick up when opened on this folder:
 | `live_reload` | Runs the mod's `main.py` again; the bridge restarts with an empty session. |
 | `live_stop` | Ends the bridge. The game keeps running. |
 
-Limits of one request: 128 KiB of code, 64 KiB of output, 600 seconds.
+Limits of one request: 128 KiB of code, 64 KiB each of captured stdout/stderr,
+256 KiB of encoded result data, and 600 seconds. Live output capture temporarily
+redirects interpreter-global stdout/stderr; prints from unrelated Python threads
+during an execution can be attributed to that request. Capture is bounded but
+cannot provide per-thread print isolation.
 
 ### Working rules for an assistant
 

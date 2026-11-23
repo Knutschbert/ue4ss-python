@@ -98,6 +98,8 @@ class FakeUe4ss(types.ModuleType):
         self.execute_with_delay = scheduler.execute_with_delay
         self.reload = lambda: None
         self.find_first_of = lambda _name: None
+        self.is_game_thread = lambda: threading.current_thread().name == "simulated-game-thread"
+        self.__path__ = [str(ROOT / "python" / "lib" / "ue4ss")]
         self.UEError = type("UEError", (Exception,), {})
 
 
@@ -297,21 +299,21 @@ def windows_process_metrics(process: Any) -> dict[str, int]:
 
 def instrument_poll_callbacks(source: str) -> str:
     """Add high-resolution resident-poll timing to benchmark-only main.py."""
-    start = "def _poll():\n"
-    finish = "    finally:\n        if not _stopping:\n            ue4ss.execute_with_delay(POLL_MS, _poll)\n"
-    if source.count(start) != 1 or source.count(finish) != 1:
-        raise RuntimeError("generated bridge shape changed; cannot safely instrument poll callback timings")
+    anchor = "_transport = FileTransport(None, INBOX, OUTBOX, HEARTBEAT, POLL_MS, ue_module=ue4ss)\n"
+    if source.count(anchor) != 1:
+        raise RuntimeError("generated bootstrap shape changed; cannot safely instrument poll callback timings")
     source = source.replace(
-        start,
-        "_bench_poll_callback_ms = []\n\n\ndef _poll():\n"
-        "    _bench_callback_started_ns = time.perf_counter_ns()\n",
-    )
-    source = source.replace(
-        finish,
-        "    finally:\n"
-        "        _bench_poll_callback_ms.append((time.perf_counter_ns() - _bench_callback_started_ns) / 1_000_000.0)\n"
-        "        if not _stopping:\n"
-        "            ue4ss.execute_with_delay(POLL_MS, _poll)\n",
+        anchor,
+        anchor
+        + "_bench_poll_callback_ms = []\n"
+        + "_bench_original_poll = _transport.poll\n\n"
+        + "def _bench_timed_poll(*args, **kwargs):\n"
+        + "    _bench_callback_started_ns = time.perf_counter_ns()\n"
+        + "    try:\n"
+        + "        return _bench_original_poll(*args, **kwargs)\n"
+        + "    finally:\n"
+        + "        _bench_poll_callback_ms.append((time.perf_counter_ns() - _bench_callback_started_ns) / 1_000_000.0)\n\n"
+        + "_transport.poll = _bench_timed_poll\n",
     )
     compile(source, "<instrumented-live-bridge-baseline>", "exec")
     return source

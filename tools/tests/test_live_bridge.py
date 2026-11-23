@@ -50,7 +50,9 @@ class BridgeHarness(unittest.TestCase):
         root.execute_with_delay = self.fake.execute_with_delay
         root.reload = self.fake.reload
         root.find_first_of = self.fake.find_first_of
+        root.is_game_thread = lambda: True
         root.UEError = type("UEError", (Exception,), {})
+        root.__path__ = [str(Path(__file__).resolve().parents[2] / "python" / "lib" / "ue4ss")]
         root.engine = self.modules["ue4ss.engine"]
         root.engine.Engine = self.modules["ue4ss.engine.Engine"]
         root.engine.Engine.GameplayStatics = types.SimpleNamespace(
