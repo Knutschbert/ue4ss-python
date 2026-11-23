@@ -30,6 +30,11 @@ becomes `main.py` and uses file IPC. Managed installation keeps a stable entry p
 with other managed scripts. File IPC is the default; socket transports require explicit selection and a private token
 file.
 
+For the MCP server, a managed bootstrap with an enabled file `LiveBridge` component counts as installed. Before its
+first game run, `live_status` reports `not_running`; it does **not** mean that the legacy standalone bridge should be
+installed. A managed bootstrap with no enabled file bridge reports `not_configured` and tells the user to configure
+managed LiveBridge. The MCP server remains attach-only in either case.
+
 ## Commands
 
 | Command | Does |
@@ -253,6 +258,27 @@ Windows user ACL can be verified. On WSL/DrvFS, use metadata-backed private perm
 rejected. The endpoint client is available in the CLI/MCP adapter, and the managed socket worker is enabled only by
 explicit configuration.
 
+The current worker bounds its peer count at 32, pending game-thread callbacks
+at 32, ordinary event handoff at 256 records/4 MiB, reliable responses at 64
+records/16 MiB, and each peer's pending writes at 2 MiB. The outcome ledger
+retains at most 1,024 entries/16 MiB for five minutes; active requests are
+pinned. One foreground game operation is admitted at a time. These are
+implementation bounds, not configurable capacity promises. Each request's
+code is limited to 128 KiB, captured stdout/stderr to 64 KiB each, and encoded
+result data to 256 KiB.
+
+`rejected` with a `Busy` error means work was refused before execution because
+another foreground request or an admission bound is full. `timeout` reports
+that the deadline elapsed; it does not stop arbitrary Python already running
+on the game thread. Do not replay a timed-out/disconnected request unless its
+outcome is known not to have run. Within one bridge instance, retrying the
+same request ID and same payload returns its retained state/result without
+re-execution; reusing the ID for different content is rejected. `unknown`
+means the outcome cannot be established (for example, after reload or ledger
+expiry), not that execution failed. `live_outcome` looks up an ID without
+replaying it. The bridge-instance ID distinguishes a fresh listener after
+reload; a new instance cannot recover the old instance's ledger.
+
 An admitted request is not cancelled when its client disconnects. Reconnect and query its outcome rather than
 replaying code; if the response is no longer retained or the bridge instance changed, the outcome is `unknown`.
 `live_reload` keeps its reload-all meaning. Its acknowledgement may be lost while the old worker shuts down, so a
@@ -260,8 +286,11 @@ disconnect around reload is not proof that the operation did not happen.
 
 ## Verified
 
-The bridge and the client are tested against a simulated engine tick. The command-line tool and the MCP server were used
+The bridge and the client are tested against a simulated engine tick. The command-line tool and MCP server were used
 against a real game (2026-11-11); what exactly is in [COMPATIBILITY.md](COMPATIBILITY.md#tools-of-this-repository).
+OpenCode V2 was also used as an actual MCP client against owned PyTestGame (2026-11-23) for status, execute, job, readiness
+and level travel. The stable managed bootstrap, TCP coexistence and reconnect lifecycle were exercised separately on an
+owned local Chivalry 2 client (2026-11-23); MCP use against Chivalry 2 remains unverified.
 
 ## Performance and soak harnesses
 

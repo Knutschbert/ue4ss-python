@@ -30,11 +30,17 @@ Two kinds of work happen here. Find yours.
 The project's [.mcp.json](.mcp.json) registers a server whose `live_*` tools run Python inside the running game
 ([docs/LIVE.md](docs/LIVE.md)).
 
-**The user starts the game. You never start, stop or install into a game**, and you do not ask a shell to do it either.
-The user installs the bridge once (`python tools/live.py install`) and starts the game.
+This MCP workflow is attach-only: the user starts the game, and these `live_*` tools never start,
+stop, install into, or replace files in a game. For a separately requested and explicitly authorized
+automated development run, use the repository's documented owned-process runner and its preflight;
+never start or stop an arbitrary process, deploy while the game is running, or replace a loaded DLL.
+For scripts that coexist with managed components, the user installs the bridge once with
+`python tools/live.py install --managed`; this preserves the stable managed bootstrap. The unflagged
+`python tools/live.py install` is the legacy standalone route and replaces `main.py`.
 
-1. **Start with `live_status`.** If the bridge is not alive, tell the user what its `what_to_do` says and stop. Do not
-   retry in a loop.
+1. **Start with `live_status`.** If the bridge is not alive, tell the user what its `what_to_do` says and stop. A
+   configured managed bridge that has not run is `not_running`, not an instruction to install the legacy bridge. Do
+   not retry in a loop.
 2. **Everything runs on the game thread.** A `live_execute` block freezes the game while it runs: no `time.sleep`, no
    long loops. To wait, use `live_wait_until`, `live_wait_ready` or `live_sleep`; for work that spans frames, use
    `live_job_start` and poll `live_job_status`.

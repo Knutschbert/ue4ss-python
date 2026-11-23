@@ -2,11 +2,9 @@
 
 ## Unreleased
 
-- `ue4ss.runtime`: explicit component/resource ownership scopes, private managed source/package loading, independent reload, guarded callbacks and nonblocking worker stop signals.
-- Full reload now disposes already-loaded managed components before native cleanup, gates restart on a bounded worker handover, and cancels futures for discarded game-thread work.
-- Live bridge execution now uses the packaged `ue4ss.live` core and canonical protocol with a thin atomic-file adapter, bounded capture/results, and independent wait maintenance.
-- Added bounded TCP frame/authentication and loopback listener primitives; file transport remains the only enabled/default transport pending socket worker and client integration.
-- Added a selector-owned loopback worker, bounded game-thread handoff, shared foreground admission, and a reconnect outcome ledger; CLI/managed startup integration is still pending.
+- Opt-in managed runtime: explicit component/resource ownership scopes, private managed source/package loading, independent reload, guarded callbacks and nonblocking worker stop signals. Legacy one-shot `main.py` remains supported.
+- Full reload disposes managed components before native cleanup, gates restart on a bounded worker handover, and cancels futures for discarded game-thread work.
+- Live bridge execution uses the packaged `ue4ss.live` core and canonical protocol with bounded file and authenticated loopback TCP transports; file IPC remains the default. CLI and MCP adapters support the live operations documented in `docs/LIVE.md`.
 - `ue4ss.bytecode` knows the last two script tokens of engine 4.25 (`0x6C`, `0x6D`).
 - MCP server for the live bridge: `.mcp.json`, clear answers without a running game, `live_wait_ready`; `AGENTS.md` for agents.
 - `docs/ENGINE_VERSIONS.md`: which engine versions are supported and how to add one.

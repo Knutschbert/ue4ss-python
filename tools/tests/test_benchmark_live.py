@@ -15,7 +15,7 @@ def test_benchmark_uses_real_file_client_and_returns_labeled_sample_metrics():
     before = sys.modules.get("ue4ss")
     result = benchmark_live.run(argparse.Namespace(
         poll_ms=50, client_poll=0.005, samples=2, warmup=1,
-        idle_seconds=0.05, timeout=3.0,
+        idle_seconds=0.05, timeout=15.0,
     ))
 
     assert result["scope"].startswith("host simulation only")

@@ -176,6 +176,14 @@ class NoGameTest(unittest.TestCase):
     def install_bridge(self):
         (self.mod / "python_scripts" / "main.py").write_text(live_mcp.BRIDGE_MARK + ": resident bridge\n")
 
+    def install_managed_bridge(self, *, enabled=True, transport="file"):
+        (self.mod / "python_scripts" / "main.py").write_text(live_mcp.MANAGED_BOOTSTRAP_MARK + "\n")
+        runtime = self.mod / "managed_runtime"
+        runtime.mkdir()
+        (runtime / "manifest.json").write_text(json.dumps({
+            "components": {"LiveBridge": {"enabled": enabled, "config": {"transport": transport}}},
+        }))
+
     def test_not_installed_is_said_and_no_tool_waits(self):
         (self.mod / "python_scripts" / "main.py").write_text("print('the user own script')")
         self.assertEqual(live_mcp.bridge_state(self.client)[0], "not_installed")
@@ -206,6 +214,20 @@ class NoGameTest(unittest.TestCase):
         self.assertEqual(state, "not_running")
         self.assertIn("stale", advice)
         self.assertIn("does not start games", advice)
+
+    def test_managed_bridge_is_installed_but_not_running(self):
+        self.install_managed_bridge()
+        state, advice = live_mcp.bridge_state(self.client)
+        self.assertEqual(state, "not_running")
+        self.assertIn("has never run", advice)
+        self.assertNotIn("live.py install", advice)
+
+    def test_managed_bootstrap_without_file_live_component_is_configuration_error(self):
+        self.install_managed_bridge(enabled=False)
+        state, advice = live_mcp.bridge_state(self.client)
+        self.assertEqual(state, "not_configured")
+        self.assertIn("live.py install --managed", advice)
+        self.assertNotIn("live.py install`", advice)
 
     def test_status_without_a_bridge_is_not_an_error_and_carries_the_advice(self):
         result = call(self.client, "live_status")
