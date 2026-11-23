@@ -120,6 +120,12 @@ unless `enable` is explicitly invoked.
 settings and source; release archives omit them. The component imports packaged canonical helpers, not `tools/`.
 Disabling it leaves the bootstrap and other components unchanged.
 
+## Headless or containerized games
+
+On a dedicated/headless server, or a game running under Wine/Proton in a
+container, the bridge needs a different game-thread pump, a proxy override, and
+care with the Wine path boundary. See [`HEADLESS.md`](HEADLESS.md).
+
 ## For AI assistants: the MCP server
 
 [`tools/live_mcp.py`](../tools/live_mcp.py) offers the bridge to an AI assistant as MCP tools over stdio.

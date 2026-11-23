@@ -1,7 +1,20 @@
 # Live bridge on headless and containerized games
 
-The live bridge depends on the Python game-thread executor being drained. It does not have a separate background
-heartbeat that can prove the game thread is progressing.
+The live bridge depends on the Python game-thread executor being drained. Its transport worker can accept TCP
+connections independently, but that does not prove the game thread is progressing.
+
+## Load UE4SS under Wine/Proton
+
+When the installed UE4SS proxy is `dwmapi.dll`, Wine/Proton may need to prefer the native proxy over its built-in
+implementation:
+
+```sh
+WINEDLLOVERRIDES="dwmapi=n,b"
+```
+
+Set this in the game process environment, such as the container service environment. Use the override matching the
+proxy DLL actually installed. The game directory must be writable where UE4SS and the bridge write logs and file-IPC
+state.
 
 ## Executor selection
 
