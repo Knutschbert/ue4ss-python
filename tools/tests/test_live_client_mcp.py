@@ -83,7 +83,7 @@ class LiveClientMcpTest(unittest.TestCase):
     def test_mcp_lists_tools_and_unknown_tool_is_error(self):
         client = LiveClient("/tmp/no-live-session")
         listed = handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, client)
-        self.assertEqual(len(listed["result"]["tools"]), 12)
+        self.assertEqual(len(listed["result"]["tools"]), 18)
         result = handle({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "nope"}}, client)
         self.assertTrue(result["result"]["isError"])
 
@@ -183,7 +183,10 @@ class NoGameTest(unittest.TestCase):
         for tool in live_mcp.TOOLS:
             if tool["name"] == "live_status":
                 continue
-            result = call(self.client, tool["name"], {"code": "1", "timeout": 30, "seconds": 30, "map": "x", "job_id": "j"})
+            result = call(self.client, tool["name"], {
+                "code": "1", "timeout": 30, "seconds": 30, "map": "x", "job_id": "j",
+                "request_id": "j", "name": "Demo", "source": "source",
+            })
             self.assertTrue(result["isError"], tool["name"])
             self.assertIn("live.py install", result["content"][0]["text"], tool["name"])
         self.assertLess(time.monotonic() - began, 2.0)            # nothing waited for a response
@@ -235,6 +238,43 @@ class ToolSetTest(unittest.TestCase):
         by_name = {tool["name"]: tool["description"] for tool in live_mcp.TOOLS}
         self.assertIn("does not start a game", by_name["live_travel"])
         self.assertIn("The game keeps running", by_name["live_stop"])
+
+    def test_managed_script_tools_are_present_and_session_source_is_sent_not_a_path(self):
+        captured = []
+
+        class ManagedClient:
+            def is_alive(self, **_kwargs):
+                return True
+
+            def request(self, operation, *, code="", args=None, timeout=30.0):
+                captured.append((operation, code, args))
+                return {"status": "ok", "result": {"name": (args or {}).get("name")}}
+
+        client = ManagedClient()
+        result = call(client, "live_script_load", {"name": "Demo", "source": "def start(ctx):\n    pass"})
+        self.assertFalse(result["isError"])
+        self.assertEqual(captured[0], (
+            "script_load", "def start(ctx):\n    pass", {"name": "Demo"}
+        ))
+        for name in ("live_script_list", "live_script_start", "live_script_stop", "live_script_reload", "live_outcome"):
+            self.assertIn(name, {tool["name"] for tool in live_mcp.TOOLS})
+
+    def test_mcp_network_status_reports_endpoint_not_a_fake_directory(self):
+        class NetworkClient:
+            is_socket = True
+            endpoint = "tcp://127.0.0.1:9000"
+            connect_timeout = 1
+
+            def ping(self, **_kwargs):
+                return {"instance_id": "test"}
+
+            def request(self, operation, **_kwargs):
+                return {"status": "ok", "result": {"alive": True, "level": "World"}}
+
+        response = call(NetworkClient(), "live_status")
+        value = json.loads(response["content"][0]["text"])
+        self.assertEqual(value["endpoint"], "tcp://127.0.0.1:9000")
+        self.assertNotIn("directory", value)
 
     def test_the_documentation_lists_exactly_the_tools(self):
         import re

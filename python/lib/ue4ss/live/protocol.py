@@ -16,7 +16,11 @@ MAX_CODE_BYTES = 128 * 1024
 MAX_TIMEOUT_SECONDS = 600.0
 MAX_OUTPUT_CHARS = 64 * 1024
 OPERATIONS = frozenset(
-    ("execute", "reset", "job_start", "job_status", "job_result", "cleanup", "reload", "status", "travel", "stop", "wait_until")
+    (
+        "execute", "reset", "job_start", "job_status", "job_result", "cleanup",
+        "reload", "status", "travel", "stop", "wait_until",
+        "script_list", "script_start", "script_stop", "script_load", "script_reload",
+    )
 )
 STATUSES = frozenset(("ok", "error", "timeout", "rejected", "unknown"))
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
@@ -74,7 +78,15 @@ def make_request(operation: str = "execute", *, code: str = "", timeout: float =
         raise ProtocolError("code must be a string")
     if operation == "execute" and not code.strip():
         raise ProtocolError("execute requires non-empty code")
-    if len(code.encode("utf-8")) > MAX_CODE_BYTES:
+    if operation == "script_load" and not code:
+        raise ProtocolError("script_load requires source code")
+    if len(code) > MAX_CODE_BYTES:
+        raise ProtocolError(f"code exceeds {MAX_CODE_BYTES} bytes")
+    try:
+        code_bytes = code.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as error:
+        raise ProtocolError("code must be valid UTF-8 text") from error
+    if len(code_bytes) > MAX_CODE_BYTES:
         raise ProtocolError(f"code exceeds {MAX_CODE_BYTES} bytes")
     seconds = _finite_number(timeout, "timeout")
     if not 0 < seconds <= MAX_TIMEOUT_SECONDS:

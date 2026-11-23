@@ -7,6 +7,7 @@ import threading
 import time
 import types
 import unittest
+from unittest import mock
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -125,6 +126,35 @@ class LiveCliTest(unittest.TestCase):
         self.assertEqual(live.prepare(" 1 + 1 "), "result = (1 + 1)")
         self.assertEqual(live.prepare("x = 1"), "result = None\nx = 1")
         self.assertEqual(live.prepare("for i in range(2):\n    print(i)"), "result = None\nfor i in range(2):\n    print(i)")
+
+    def test_managed_cli_operations_send_single_file_source_content(self):
+        calls = []
+
+        class RecordingClient:
+            is_socket = True
+            endpoint = "tcp://127.0.0.1:1234"
+
+            def request(self, operation, *, code="", args=None, timeout=30.0):
+                calls.append((operation, code, args))
+                return {"status": "ok", "result": {"operation": operation}}
+
+            def outcome(self, request_id, **_kwargs):
+                return {"state": "unknown", "request_id": request_id}
+
+        source = self._tmp.name + "/remote_script.py"
+        Path(source).write_text("def start(ctx):\n    pass\n", encoding="utf-8")
+        options = ["--endpoint", "tcp://127.0.0.1:1234", "--token-file", "unused-token-file"]
+        with mock.patch.object(live, "client_from_environment", return_value=RecordingClient()):
+            self.assertEqual(live.main(options + ["script-load", "Demo", "-f", source]), 0)
+            self.assertEqual(live.main(options + ["script-reload", "Demo"]), 0)
+            self.assertEqual(live.main(options + ["script-start", "Demo"]), 0)
+            self.assertEqual(live.main(options + ["script-stop", "Demo"]), 0)
+            self.assertEqual(live.main(options + ["scripts"]), 0)
+            self.assertEqual(live.main(options + ["outcome", "request-1"]), 0)
+        self.assertEqual(calls[0], (
+            "script_load", "def start(ctx):\n    pass\n", {"name": "Demo"}
+        ))
+        self.assertEqual(calls[1], ("script_reload", "", {"name": "Demo"}))
 
 
 if __name__ == "__main__":

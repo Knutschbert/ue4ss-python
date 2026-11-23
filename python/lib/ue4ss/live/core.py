@@ -80,6 +80,7 @@ class LiveCore:
         ue_module: Any = ue4ss,
         world_name: Callable[[], Any] | None = None,
         travel: Callable[[str], Any] | None = None,
+        script_runtime: Any = None,
         wall_clock: Callable[[], float] = time.time,
         monotonic: Callable[[], float] = time.monotonic,
     ):
@@ -91,6 +92,7 @@ class LiveCore:
         self.ue = ue_module
         self._world_name = world_name or self._level_name
         self._travel = travel or self._travel_to
+        self.script_runtime = script_runtime
         self._wall = wall_clock
         self._mono = monotonic
         self.busy = False
@@ -462,6 +464,25 @@ class LiveCore:
                     elif operation == "stop":
                         result = {"stopping": True, "cleanup": self.cleanup("*")}
                         self.stopping = True
+                    elif operation == "script_list":
+                        result = self._script_runtime().list()
+                    elif operation == "script_start":
+                        name = self._script_name(request.get("args", {}).get("name"))
+                        self._script_runtime().start(name)
+                        result = self._script_record(name)
+                    elif operation == "script_stop":
+                        name = self._script_name(request.get("args", {}).get("name"))
+                        self._script_runtime().stop(name)
+                        result = self._script_record(name)
+                    elif operation == "script_load":
+                        name = self._script_name(request.get("args", {}).get("name"))
+                        self._script_runtime().load_source(name, request["code"])
+                        result = self._script_record(name)
+                    elif operation == "script_reload":
+                        name = self._script_name(request.get("args", {}).get("name"))
+                        source = request["code"] if request["code"] else None
+                        self._script_runtime().reload(name, source)
+                        result = self._script_record(name)
                     else:
                         raise ValueError("unsupported operation: " + repr(operation))
             except Exception as error:
@@ -507,6 +528,23 @@ class LiveCore:
         with self._admission_lock:
             self.pending_wait = None
             self._admitted_request_id = None
+
+    def _script_runtime(self):
+        if self.script_runtime is None:
+            raise RuntimeError("managed script runtime is not enabled")
+        return self.script_runtime
+
+    @staticmethod
+    def _script_name(value: Any) -> str:
+        if not isinstance(value, str) or not value:
+            raise ValueError("managed script operation requires a non-empty name")
+        return value
+
+    def _script_record(self, name: str) -> dict[str, Any]:
+        for record in self._script_runtime().list():
+            if record["name"] == name:
+                return record
+        return {"name": name, "state": "stopped"}
 
     def _level_name(self):
         try:

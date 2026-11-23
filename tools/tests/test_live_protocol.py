@@ -71,8 +71,15 @@ class LiveProtocolTest(unittest.TestCase):
                 live_protocol.read_record(path)
 
     def test_all_control_operations_are_supported(self):
-        for operation in ("reset", "job_start", "job_status", "job_result", "cleanup", "reload", "status", "travel", "stop"):
-            request = live_protocol.make_request(operation, request_id=operation, now=1)
+        for operation in (
+            "reset", "job_start", "job_status", "job_result", "cleanup", "reload",
+            "status", "travel", "stop", "script_list", "script_start", "script_stop",
+            "script_load", "script_reload",
+        ):
+            request = live_protocol.make_request(
+                operation, code="source" if operation == "script_load" else "",
+                request_id=operation, now=1,
+            )
             self.assertEqual(live_protocol.validate_request(request, now=1)["operation"], operation)
 
     def test_protocol_is_imported_from_the_packaged_canonical_module(self):

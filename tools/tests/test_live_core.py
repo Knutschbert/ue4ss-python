@@ -205,6 +205,42 @@ def test_core_refuses_off_game_thread_operations():
     assert len(failures) == 1 and isinstance(failures[0], fake.UEError)
 
 
+def test_managed_script_operations_are_transport_neutral_and_source_stays_session_only():
+    class ScriptRuntime:
+        def __init__(self):
+            self.loaded = {}
+
+        def list(self):
+            return list(self.loaded.values())
+
+        def load_source(self, name, source):
+            self.loaded[name] = {"name": name, "source_kind": "session", "state": "running", "source": source}
+
+        def start(self, name):
+            self.loaded[name]["state"] = "running"
+
+        def stop(self, name):
+            self.loaded[name]["state"] = "stopped"
+
+        def reload(self, name, source=None):
+            if source is not None:
+                self.loaded[name]["source"] = source
+            self.loaded[name]["state"] = "running"
+
+    fake = FakeUe4ss()
+    events = []
+    scripts = ScriptRuntime()
+    core = LiveCore(events.append, ue_module=fake, script_runtime=scripts)
+    loaded = core.dispatch(request("script_load", code="def start(ctx):\n    pass", args={"name": "Example"}))
+    assert loaded["status"] == "ok"
+    assert loaded["result"]["source_kind"] == "session"
+    assert scripts.loaded["Example"]["source"].startswith("def start")
+    core.dispatch(request("script_stop", code="", request_id="script-stop", args={"name": "Example"}))
+    assert scripts.loaded["Example"]["state"] == "stopped"
+    restarted = core.dispatch(request("script_reload", code="", request_id="script-reload", args={"name": "Example"}))
+    assert restarted["result"]["state"] == "running"
+
+
 def test_packaged_live_package_imports_from_the_mod_layout(tmp_path):
     package = tmp_path / "dlls" / "ue4ss" / "live"
     shutil.copytree(ROOT / "python" / "lib" / "ue4ss" / "live", package)

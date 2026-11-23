@@ -7,12 +7,15 @@
     python tools/live.py exec -f my_snippet.py
     python tools/live.py repl             # type lines, see the output; variables stay between lines
     python tools/live.py stop             # end the bridge in the game
+    python tools/live.py --endpoint tcp://127.0.0.1:9000 --token-file live.token status
+    python tools/live.py scripts          # managed-script operations require managed bootstrap
     python tools/live.py uninstall        # put your main.py back
 
 How it works: the bridge re-arms itself on the game thread every 250 ms, picks up request files from <session>/inbox, runs the
 code with exec in one persistent scope, and writes the printed output, the value of a variable named `result` and any
 traceback to <session>/outbox. The session folder is dist/PythonScripting/live (PYUE_LIVE_DIR overrides it). Nothing listens
-on the network. tools/live_mcp.py offers the same operations to an AI assistant as MCP tools.
+on the network by default; an explicitly configured managed runtime may enable authenticated loopback TCP. tools/live_mcp.py
+offers the same operations to an AI assistant as MCP tools.
 """
 import argparse
 import os
@@ -22,7 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from live_bridge import build_bridge  # noqa: E402
-from live_client import LiveClient, LiveClientError  # noqa: E402
+from live_client import LiveClient, LiveClientError, client_from_environment  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 MOD = ROOT / "dist" / "PythonScripting"
@@ -32,6 +35,15 @@ BACKUP_NAME = "main.py.before-live"
 
 def session_dir(path: Path = None) -> Path:
     return Path(path or os.environ.get("PYUE_LIVE_DIR", str(MOD / "live")))
+
+
+def read_source_file(path: Path, limit: int = 128 * 1024) -> bytes:
+    """Read at most one bounded source file, without buffering an oversized file."""
+    with Path(path).open("rb") as source:
+        content = source.read(limit + 1)
+    if len(content) > limit:
+        raise LiveClientError(f"source file exceeds the {limit} byte limit")
+    return content
 
 
 def game_path(path: Path) -> str:
@@ -96,7 +108,10 @@ def prepare(code: str) -> str:
 def execute(client: LiveClient, code: str, timeout: float) -> int:
     code = prepare(code)
     if not client.is_alive():
-        print("live: no bridge is running (python tools/live.py install, then start the game)", file=sys.stderr)
+        if getattr(client, "is_socket", False):
+            print(f"live: TCP bridge unavailable at {client.endpoint}; check the SSH tunnel, endpoint, and token file", file=sys.stderr)
+        else:
+            print("live: no bridge is running (python tools/live.py install, then start the game)", file=sys.stderr)
         return 1
     try:
         show(client.request("execute", code=code, timeout=timeout))
@@ -135,6 +150,8 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--mod-dir", type=Path, default=MOD, help="the packaged PythonScripting folder (default: %(default)s)")
     parser.add_argument("--session-dir", type=Path, help="the live session folder (default: PYUE_LIVE_DIR or <mod-dir>/live)")
+    parser.add_argument("--endpoint", help="authenticated TCP endpoint (tcp://127.0.0.1:PORT or tcp://[::1]:PORT); overrides PYUE_LIVE_ENDPOINT")
+    parser.add_argument("--token-file", help="restricted bearer-token file (default: PYUE_LIVE_TOKEN_FILE)")
     sub = parser.add_subparsers(dest="command", required=True)
     install_parser = sub.add_parser("install", help="make the bridge the mod's main.py")
     install_parser.add_argument("--poll-ms", type=int, default=250, help="how often the bridge looks for requests (default: %(default)s)")
@@ -146,30 +163,85 @@ def main(argv=None) -> int:
     sub.add_parser("repl", help="an interactive prompt")
     sub.add_parser("reset", help="forget the variables of the session")
     sub.add_parser("stop", help="end the bridge in the game")
+    sub.add_parser("scripts", help="list managed scripts")
+    outcome_parser = sub.add_parser("outcome", help="look up a request outcome without replaying it")
+    outcome_parser.add_argument("request_id")
+    for action in ("start", "stop"):
+        script_parser = sub.add_parser(f"script-{action}", help=f"{action} one managed script")
+        script_parser.add_argument("name")
+    load_parser = sub.add_parser("script-load", help="load one session-only script source file")
+    load_parser.add_argument("name")
+    load_parser.add_argument("-f", "--file", type=Path, required=True)
+    reload_parser = sub.add_parser("script-reload", help="reload one managed script, optionally replacing its source")
+    reload_parser.add_argument("name")
+    reload_parser.add_argument("-f", "--file", type=Path, help="replacement single-file source; omitted to reuse the loaded source")
     parser.add_argument("--timeout", type=float, default=30.0, help="seconds to wait for the game (default: %(default)s)")
     args = parser.parse_args(argv)
     mod = args.mod_dir
-    session = session_dir(args.session_dir) if args.session_dir else Path(os.environ.get("PYUE_LIVE_DIR", str(mod / "live")))
-    client = LiveClient(session)
+    try:
+        if args.command in ("install", "uninstall"):
+            if args.endpoint:
+                raise LiveClientError("install/uninstall are local file-bridge operations and do not accept --endpoint")
+            client = LiveClient(args.session_dir or os.environ.get("PYUE_LIVE_DIR", str(mod / "live")))
+        else:
+            client = client_from_environment(
+                args.session_dir,
+                endpoint=args.endpoint,
+                token_file=args.token_file,
+            )
+    except LiveClientError as error:
+        print(f"live: {error}", file=sys.stderr)
+        return 2
     try:
         if args.command == "install":
+            if getattr(client, "is_socket", False):
+                raise LiveClientError("install configures the local file bridge; use it without --endpoint")
+            session = client.root
             install(mod, session, poll_ms=args.poll_ms)
         elif args.command == "uninstall":
+            if getattr(client, "is_socket", False):
+                raise LiveClientError("uninstall configures the local file bridge; use it without --endpoint")
             uninstall(mod)
         elif args.command == "status":
-            alive = client.is_alive()
-            print("the bridge is alive" if alive else f"no bridge is running (no fresh heartbeat in {client.heartbeat})")
-            if alive:
-                show(client.request("status", timeout=min(args.timeout, 10.0)))
-            return 0 if alive else 1
+            try:
+                response = client.request("status", timeout=min(args.timeout, 10.0))
+            except LiveClientError as error:
+                location = client.endpoint if getattr(client, "is_socket", False) else f"heartbeat {client.heartbeat}"
+                print(f"live: bridge unavailable ({location}): {error}", file=sys.stderr)
+                return 1
+            print("the bridge is alive")
+            show(response)
+            return 0
         elif args.command == "exec":
-            code = args.file.read_text(encoding="utf-8") if args.file else (sys.stdin.read() if args.code in (None, "-") else args.code)
+            if args.file:
+                code = read_source_file(args.file).decode("utf-8", errors="strict")
+            else:
+                code = sys.stdin.read(128 * 1024 + 1) if args.code in (None, "-") else args.code
+            if len(code.encode("utf-8")) > 128 * 1024:
+                raise LiveClientError("source exceeds the 128 KiB live request limit")
             return execute(client, code, args.timeout)
         elif args.command == "repl":
             return repl(client, args.timeout)
+        elif args.command == "scripts":
+            show(client.request("script_list", timeout=args.timeout))
+        elif args.command == "outcome":
+            show(client.outcome(args.request_id, timeout=min(args.timeout, 10.0)))
+        elif args.command == "script-start":
+            show(client.request("script_start", args={"name": args.name}, timeout=args.timeout))
+        elif args.command == "script-stop":
+            show(client.request("script_stop", args={"name": args.name}, timeout=args.timeout))
+        elif args.command == "script-load":
+            source = read_source_file(args.file)
+            show(client.request("script_load", code=source.decode("utf-8", errors="strict"),
+                                args={"name": args.name}, timeout=args.timeout))
+        elif args.command == "script-reload":
+            source = read_source_file(args.file).decode("utf-8", errors="strict") if args.file else ""
+            if len(source.encode("utf-8")) > 128 * 1024:
+                raise LiveClientError("source file exceeds the 128 KiB managed-script limit")
+            show(client.request("script_reload", code=source, args={"name": args.name}, timeout=args.timeout))
         else:
             show(client.request(args.command, timeout=args.timeout))
-    except LiveClientError as error:
+    except (LiveClientError, UnicodeError, OSError) as error:
         print(f"live: {error}", file=sys.stderr)
         return 1
     return 0

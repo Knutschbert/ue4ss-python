@@ -35,9 +35,18 @@ PlayerStart /Game/Maps/Example.Example:PersistentLevel.PlayerStart_0
 | `repl` | A prompt. A line ending in `:` starts a block, an empty line ends it. |
 | `reset` | Forgets the variables of the session. |
 | `stop` | Ends the bridge in the game. |
+| `scripts` | Lists independently managed scripts (requires managed bootstrap). |
+| `script-start NAME`, `script-stop NAME` | Starts or stops only one managed script. |
+| `script-load NAME -f file.py` | Sends one UTF-8 source file and loads it for this session; it is not persisted. |
+| `script-reload NAME [-f file.py]` | Reloads only one managed script, optionally replacing its single-file source. |
 
 `--timeout SECONDS` (before the command) sets how long to wait for the game, default 30. `--mod-dir <PythonScripting>`
-and `--session-dir <folder>` select a packaged mod and session outside this checkout.
+and `--session-dir <folder>` select a packaged mod and file session outside this checkout. `--endpoint
+tcp://127.0.0.1:PORT` or `--endpoint tcp://[::1]:PORT` selects the authenticated TCP client; pair it with
+`--token-file <private-file>`. `PYUE_LIVE_ENDPOINT` and `PYUE_LIVE_TOKEN_FILE` provide the corresponding environment
+configuration. Endpoint selection overrides `PYUE_LIVE_DIR`; explicit `--session-dir` selects the legacy file transport,
+while explicitly passing both `--endpoint` and `--session-dir` is an error. `install` and `uninstall` remain local
+file-bridge operations.
 
 ## How it works
 
@@ -52,6 +61,9 @@ and `--session-dir <folder>` select a packaged mod and session outside this chec
 - **The session folder** is `dist\PythonScripting\live`; the environment variable `PYUE_LIVE_DIR` names another one.
 - **One request at a time.** A request that arrives while another runs is rejected. Code that runs long freezes the
   game for that time, like any code on the game thread; start a job for long work (below).
+- **Authenticated TCP (opt-in client).** The TCP client uses the same request records and operations. Bind the game
+  listener to loopback and use SSH local forwarding for remote clients; file IPC remains the default. TCP endpoint
+  options do not make the MCP server install or start a listener.
 
 Besides `execute`, the protocol has `job_start` / `job_status` (code that runs in a later tick while the bridge keeps
 answering), `wait_until` (block until an expression becomes true, re-evaluated across frames), `cleanup` (run callbacks
@@ -89,6 +101,7 @@ example) pick up when opened on this folder:
 - For other clients, register the same command with **this repository as the working directory**, in that client's own
   configuration.
 - The session folder is `dist/PythonScripting/live`; add `"env": {"PYUE_LIVE_DIR": "<folder>"}` for another one.
+- For an already configured TCP listener, set `"env": {"PYUE_LIVE_ENDPOINT": "tcp://127.0.0.1:PORT", "PYUE_LIVE_TOKEN_FILE": "<private-token-file>"}`. Endpoint takes precedence over `PYUE_LIVE_DIR`; an explicit `--session-dir` selects files.
 - **Game package with this repository as a submodule:** put this in the game repository's `.mcp.json`, substituting the
   Python command when needed:
 
@@ -116,6 +129,12 @@ example) pick up when opened on this folder:
 | `live_travel` | Opens another level inside the running game (the engine's `OpenLevel`). Level paths are specific to the game. |
 | `live_reload` | Runs the mod's `main.py` again; the bridge restarts with an empty session. |
 | `live_stop` | Ends the bridge. The game keeps running. |
+| `live_script_list` | Lists independently managed scripts and their lifecycle/worker diagnostics. |
+| `live_script_start` | Starts a previously loaded managed script as a fresh instance. |
+| `live_script_stop` | Stops only the named managed script; siblings continue running. |
+| `live_script_load` | Sends one bounded source string for a session-only managed script; it does not persist to disk. |
+| `live_script_reload` | Reloads one managed script, optionally with replacement source. |
+| `live_outcome` | Looks up a prior request ID without replay; returns `unknown` when no retained result is available. |
 
 Limits of one request: 128 KiB of code, 64 KiB each of captured stdout/stderr,
 256 KiB of encoded result data, and 600 seconds. Live output capture temporarily
@@ -164,8 +183,8 @@ strict request IDs, constant-time token comparison, and pre-authentication messa
 worker keeps socket I/O off the game thread and retains bounded request outcomes across reconnects within one bridge
 instance. Token provisioning uses an exclusive file create and fails closed unless POSIX mode/ownership or the current
 Windows user ACL can be verified. On WSL/DrvFS, use metadata-backed private permissions; a permissive mode report is
-rejected. The worker and token helper are not yet enabled by the live CLI or managed installation; endpoint client
-configuration and a supported token-provisioning CLI remain to be integrated.
+rejected. The endpoint client is available in the CLI/MCP adapter, but the socket worker is not yet enabled by managed
+installation, and a supported token-provisioning CLI remains to be integrated.
 
 An admitted request is not cancelled when its client disconnects. Reconnect and query its outcome rather than
 replaying code; if the response is no longer retained or the bridge instance changed, the outcome is `unknown`.
