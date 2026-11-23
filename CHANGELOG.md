@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `ue4ss.runtime`: explicit component/resource ownership scopes, private managed source/package loading, independent reload, guarded callbacks and nonblocking worker stop signals.
 - `ue4ss.bytecode` knows the last two script tokens of engine 4.25 (`0x6C`, `0x6D`).
 - MCP server for the live bridge: `.mcp.json`, clear answers without a running game, `live_wait_ready`; `AGENTS.md` for agents.
 - `docs/ENGINE_VERSIONS.md`: which engine versions are supported and how to add one.

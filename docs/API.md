@@ -245,6 +245,80 @@ actor.SetActorHiddenInGame(True)             # None
 
 `register_hook(path, pre=None, post=None, instance=None)`: with `instance=obj` only calls on that object reach the callbacks (other objects cost nothing, which matters for functions every actor calls). A Blueprint function path such as `/Game/Interactables/World/Seatable/LevelActor_BaseSeatable.LevelActor_BaseSeatable_C:ExecuteUbergraph_LevelActor_BaseSeatable` loads its class first when the game has not loaded it (a short hitch). Blueprint events run through the single `ExecuteUbergraph_<Class>` function of their class with the event in the `EntryPoint` parameter: see `docs/BLUEPRINT_HOOKS.md`.
 
+### Managed script ownership
+
+The pure-Python `ue4ss.runtime` submodule provides explicit cleanup scopes for
+managed components. It does not change or monkeypatch the built-in `ue4ss`
+module. Direct registrations remain supported, but are not automatically owned.
+Lifecycle operations and Unreal resource registrations must run on the game
+thread:
+
+```python
+from ue4ss.runtime import RuntimeManager
+
+runtime = RuntimeManager()
+
+def start_overlay(ctx):
+    ctx.register_key_down(ue4ss.Key.F6, show_overlay)
+    ctx.execute_with_delay(1000, refresh_overlay)
+    ctx.register_cleanup(close_overlay, name="overlay")
+
+# Call start/stop from the game thread.
+overlay = runtime.start("overlay", start_overlay)
+runtime.stop("overlay")
+```
+
+`RuntimeManager.start(name, starter)` gives the starter a `ComponentContext`;
+`ctx.register_cleanup(callable, name=None)` and `ctx.adopt(cleanup)` register
+explicit disposal actions. `ctx.register_key_down`, `register_hook`,
+`register_replacement`, `bind_event`, and `notify_on_new_object` install
+automatically owned, validity-guarded registrations. `ctx.execute_in_game_thread`
+and `ctx.execute_with_delay` deliver callbacks only while their scope is valid
+and run them in that owner context, so they can add further explicitly owned
+resources. Native delayed tasks cannot be cancelled; their user callback and
+arguments are released on invalidation and their small queued wrapper becomes a
+no-op.
+
+Stopping invalidates first, runs cleanup in reverse order, and aggregates
+cleanup errors as `CleanupError`. Workers started with
+`ctx.spawn_worker(target, *args, **kwargs)` receive a stop `threading.Event` as
+their first argument; stop signals them
+but never joins them. If a worker has not exited, the component remains
+`stopping` and cannot be restarted under the same name. Worker code must hand
+Unreal work back through `ctx.execute_in_game_thread`. Child scopes created with
+`ctx.child_scope(name)` are disposed with their parent. A startup exception
+rolls back owned resources and is reported as `ComponentStartError`.
+
+`ScriptRuntime` adds private source/package loading over `RuntimeManager`:
+
+```python
+from ue4ss.runtime import ScriptRuntime
+
+scripts = ScriptRuntime(roots=(r"P:\game\Mods\PythonScripting\managed",))
+scripts.load_local("debug_overlay", r"P:\game\Mods\PythonScripting\managed\debug_overlay")
+scripts.reload("debug_overlay")
+scripts.stop("debug_overlay")
+print(scripts.list())
+```
+
+Local entries are package directories with `__init__.py` exporting `start(ctx)`;
+their resolved paths must be under a configured root. Relative helper imports
+are loaded under a fresh private package identity for each start, directly from
+source (without stale `.pyc` reuse). Reloading one package does not delete other
+components' private modules or shared imports. `reload(name)` rereads a local
+package; for session source, it reexecutes the current source. Supplying
+`source=...` to `reload` replaces session-loaded source. Syntax is checked before
+the old component is stopped; a replacement startup failure rolls back its new
+resources and leaves that component failed while peers continue.
+
+`load_source(name, source)` accepts one UTF-8 file up to 128 KiB and runs it in
+memory. This is the live/remote-load path: it is session-only and does not write
+the file or mutate startup configuration. Use `load_local` for explicitly
+configured local packages. `start(name)` starts the last loaded source/package
+as a new component instance; `reload(name)` creates both a fresh module identity
+and a fresh ownership context. No implicit `importlib.reload` or shared-module
+refresh occurs; updating shared library code requires a full script reload.
+
 ```python
 def pre(context, params):          # before the function runs
     print(context, params.NewLocation.X)
