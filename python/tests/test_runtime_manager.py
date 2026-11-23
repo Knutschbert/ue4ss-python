@@ -99,11 +99,12 @@ def test_child_scope_has_independent_cleanup_and_stops_with_parent():
 
 def test_guarded_stale_nested_callback_is_skipped_and_runs_in_owner_context():
     manager = RuntimeManager()
+    from ue4ss.runtime import current_context
     seen = []
 
     def start(ctx):
         def first():
-            seen.append(manager.current_context())
+            seen.append(current_context())
             ctx.register_cleanup(lambda: seen.append("nested cleanup"))
             ctx.execute_in_game_thread(lambda: seen.append("nested callback"))
             manager.stop("A")
@@ -115,6 +116,7 @@ def test_guarded_stale_nested_callback_is_skipped_and_runs_in_owner_context():
     assert seen == [ctx, "nested cleanup"]
     ue4ss._mock_run_pending()
     assert seen == [ctx, "nested cleanup"]
+    assert current_context() is None
 
 
 def test_invalidating_delayed_callback_releases_user_closure():

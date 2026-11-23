@@ -280,6 +280,10 @@ resources. Native delayed tasks cannot be cancelled; their user callback and
 arguments are released on invalidation and their small queued wrapper becomes a
 no-op.
 
+`ue4ss.runtime.current_context()` returns the active owner in a managed callback,
+or `None` otherwise. Helper libraries can use it for optional ownership
+integration; the active context is restored after nested calls and exceptions.
+
 Stopping invalidates first, runs cleanup in reverse order, and aggregates
 cleanup errors as `CleanupError`. Workers started with
 `ctx.spawn_worker(target, *args, **kwargs)` receive a stop `threading.Event` as

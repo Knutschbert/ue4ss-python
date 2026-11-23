@@ -36,6 +36,7 @@ __all__ = [
     "RuntimeManager",
     "ScriptRuntime",
     "WorkerHandle",
+    "current_context",
 ]
 
 _current_context: contextvars.ContextVar["ComponentContext | None"] = contextvars.ContextVar(
@@ -46,6 +47,15 @@ _SCRIPT_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
 MAX_SOURCE_BYTES = 128 * 1024
 _script_runtimes: "weakref.WeakSet[ScriptRuntime]" = weakref.WeakSet()
 _global_handover_runtimes: list["ScriptRuntime"] = []
+
+
+def current_context() -> "ComponentContext | None":
+    """Return the managed ownership scope active in this callback, if any.
+
+    The value is callback-local and is restored after reentrant calls and
+    exceptions. Legacy code outside managed callbacks receives ``None``.
+    """
+    return _current_context.get()
 
 
 class CleanupError(RuntimeError):
@@ -967,4 +977,4 @@ class RuntimeManager:
 
     def current_context(self) -> ComponentContext | None:
         """Return the owner context only while one of its guarded callbacks runs."""
-        return _current_context.get()
+        return current_context()
