@@ -150,6 +150,21 @@ The bridge executes whatever is written into its inbox folder. Nothing listens o
 folder is: anyone who can write files there can run code in the game with your rights. Keep the session folder on your
 own machine, and uninstall the bridge when you are done exploring ([SECURITY.md](../SECURITY.md)).
 
+### TCP transport security contract
+
+Authenticated TCP support is being developed as an opt-in transport; the existing file bridge remains the default.
+The listener is restricted to numeric loopback addresses (`127.0.0.1` or `::1`) and requires a random bearer token
+stored in a separate restricted file. It is not encrypted TCP and is not a defense against a privileged local user.
+For cross-machine use, the intended path is an SSH local forward explicitly bound on the client side to loopback, for
+example `ssh -L 127.0.0.1:PORT:127.0.0.1:PORT user@game-host`; do not expose the listener to a LAN or public
+interface. The token must not be put in generated scripts, command-line arguments, URLs, or logs.
+
+The packaged framing/security helpers enforce a 1 MiB whole-frame limit, strict UTF-8 JSON, finite numeric values,
+strict request IDs, constant-time token comparison, and pre-authentication message restrictions. Token provisioning
+uses an exclusive file create and fails closed unless POSIX mode/ownership or the current Windows user ACL can be
+verified. On WSL/DrvFS, use metadata-backed private permissions; a permissive mode report is rejected. TCP service,
+client endpoint configuration, and a supported token-provisioning CLI are not yet enabled by this helper layer.
+
 ## Verified
 
 The bridge and the client are tested against a simulated engine tick. The command-line tool and the MCP server were used
