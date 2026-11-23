@@ -137,9 +137,10 @@ care with the Wine path boundary. See [`HEADLESS.md`](HEADLESS.md).
 
 > [!IMPORTANT]
 > **You start the game; the assistant works with the game that is running.** The server never starts, stops or installs
-> into a game: games differ too much in how they are launched (Steam, Epic, extra DLLs). Install the bridge once with
-> `python tools/live.py install`, start the game, then let the assistant work. Without a running bridge every tool
-> answers at once with what you have to do.
+> into a game: games differ too much in how they are launched (Steam, Epic, extra DLLs). For the preferred managed setup,
+> configure LiveBridge with `python tools/live.py install --managed`, then start the game. The legacy standalone
+> `python tools/live.py install` route is for explicit legacy use only. Without a running bridge every tool answers at
+> once with what you have to do.
 
 ### Registration
 
@@ -171,8 +172,8 @@ example) pick up when opened on this folder:
   ```
 
 - **Client under WSL, game on Windows:** this works when the repository is on a Windows drive, because both then see the
-  same session folder (`/mnt/p/...` and `P:\...`). Run `python tools\live.py install` with either Python; it writes the
-  folder for the game as a Windows path.
+  same session folder (`/mnt/p/...` and `P:\...`). Run `python tools\live.py install --managed` with either Python; it
+  writes the folder for the game as a Windows path.
 
 ### Tools
 

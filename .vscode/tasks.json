@@ -212,7 +212,7 @@
     },
     {
       "label": "Live: Python prompt in the running game",
-      "detail": "Needs the bridge: python tools/live.py install, then start the game.",
+      "detail": "Needs managed LiveBridge: python tools/live.py install --managed, then start the game.",
       "type": "process",
       "command": "python",
       "args": [

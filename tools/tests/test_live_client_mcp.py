@@ -196,7 +196,8 @@ class NoGameTest(unittest.TestCase):
                 "request_id": "j", "name": "Demo", "source": "source",
             })
             self.assertTrue(result["isError"], tool["name"])
-            self.assertIn("live.py install", result["content"][0]["text"], tool["name"])
+            self.assertIn("live.py install --managed", result["content"][0]["text"], tool["name"])
+            self.assertIn("legacy standalone", result["content"][0]["text"], tool["name"])
         self.assertLess(time.monotonic() - began, 2.0)            # nothing waited for a response
         self.assertFalse((self.mod / "live" / "inbox").exists())  # and nothing was sent
 
@@ -234,7 +235,7 @@ class NoGameTest(unittest.TestCase):
         self.assertFalse(result["isError"])
         value = json.loads(result["content"][0]["text"])
         self.assertEqual((value["alive"], value["state"]), (False, "not_installed"))
-        self.assertIn("live.py install", value["what_to_do"])
+        self.assertIn("live.py install --managed", value["what_to_do"])
 
     def test_status_with_a_bridge_reports_level_and_generation(self):
         client = ScriptedClient(self.mod / "live", {"status": {"status": "ok", "result": {"alive": True, "generation": 3, "level": "World /Game/Maps/A.A", "jobs": []}}})
@@ -247,6 +248,8 @@ class ToolSetTest(unittest.TestCase):
         result = handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}, LiveClient("/tmp/no-live-session"))["result"]
         self.assertIn("never starts", result["instructions"])
         self.assertIn("live_status", result["instructions"])
+        self.assertIn("install --managed", result["instructions"])
+        self.assertIn("legacy-only", result["instructions"])
 
     def test_every_tool_is_described_and_none_starts_or_installs_anything(self):
         names = [tool["name"] for tool in live_mcp.TOOLS]

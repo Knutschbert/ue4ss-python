@@ -1,7 +1,7 @@
 """Minimal stdio MCP adapter for a running live-game bridge.
 
-Exposes the operations of a running bridge (tools/live.py install, then start the game) as MCP tools over stdio, so an
-AI assistant can run Python in the game. It does not start a game: without a live session every tool reports that.
+Exposes a running managed LiveBridge as MCP tools over stdio, so an AI assistant can run Python in the game.
+It does not start a game: without a live session every tool reports that.
 The session folder is PYUE_LIVE_DIR, default dist/PythonScripting/live.
 """
 
@@ -17,7 +17,8 @@ from live_client import LiveClient, LiveClientError, client_from_environment
 
 INSTRUCTIONS = (
     "Runs Python inside a running Unreal Engine game through the ue4ss-python mod. This server never starts, stops or installs "
-    "into a game: the user configures/installs the bridge and starts the game themselves. File IPC is the default; an explicitly "
+    "into a game: the user configures/installs the managed LiveBridge and starts the game themselves. Prefer "
+    "`python tools/live.py install --managed`; the unflagged standalone install is legacy-only. File IPC is the default; an explicitly "
     "configured TCP endpoint uses PYUE_LIVE_ENDPOINT with a separate restricted PYUE_LIVE_TOKEN_FILE. Call live_status first; "
     "when no bridge is alive, tell the user what it says instead of retrying. All code runs on the game thread in one "
     "persistent session (variables stay between calls, `ue4ss` is imported): keep each call short, use live_job_start for "
@@ -164,8 +165,11 @@ def bridge_state(client: LiveClient) -> tuple[str, str]:
     else:
         installation = None
     if installation is None:
-        return "not_installed", ("The bridge is not installed: the user has to run `python tools/live.py install` in the ue4ss-python "
-                                  "repository and then start the game (or reload the script in a running game). This server does not do that.")
+        return "not_installed", (
+            "No managed LiveBridge installation was found. The preferred setup is `python tools/live.py install --managed` "
+            "in the ue4ss-python repository, followed by starting the game (or reloading its script). The legacy standalone "
+            "install route is not recommended for managed-runtime setups. This server does not change game files."
+        )
     if installation == "managed_unconfigured":
         return "not_configured", (
             "The managed bootstrap is installed but its file LiveBridge component is not enabled. The user has to run "
