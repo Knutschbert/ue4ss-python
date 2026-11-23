@@ -99,11 +99,22 @@ def test_child_scope_has_independent_cleanup_and_stops_with_parent():
 
 def test_guarded_stale_nested_callback_is_skipped_and_runs_in_owner_context():
     manager = RuntimeManager()
-    from ue4ss.runtime import current_context
+    from ue4ss.runtime import current_context, run_with_context
     seen = []
 
     def start(ctx):
         def first():
+            seen.append(current_context())
+            run_with_context(None, lambda: seen.append(current_context()))
+
+            def raising():
+                assert current_context() is None
+                raise ValueError("expected")
+
+            try:
+                run_with_context(None, raising)
+            except ValueError:
+                pass
             seen.append(current_context())
             ctx.register_cleanup(lambda: seen.append("nested cleanup"))
             ctx.execute_in_game_thread(lambda: seen.append("nested callback"))
@@ -113,9 +124,9 @@ def test_guarded_stale_nested_callback_is_skipped_and_runs_in_owner_context():
 
     ctx = on_game_thread(lambda: manager.start("A", start))
     ue4ss._mock_run_pending()
-    assert seen == [ctx, "nested cleanup"]
+    assert seen == [ctx, None, ctx, "nested cleanup"]
     ue4ss._mock_run_pending()
-    assert seen == [ctx, "nested cleanup"]
+    assert seen == [ctx, None, ctx, "nested cleanup"]
     assert current_context() is None
 
 

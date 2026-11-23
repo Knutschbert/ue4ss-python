@@ -283,6 +283,9 @@ no-op.
 `ue4ss.runtime.current_context()` returns the active owner in a managed callback,
 or `None` otherwise. Helper libraries can use it for optional ownership
 integration; the active context is restored after nested calls and exceptions.
+`run_with_context(context, callback, *args, **kwargs)` enters exactly the
+requested context, including `None` to prevent an unowned legacy callback from
+inheriting a managed caller's ownership during engine reentrancy.
 
 Stopping invalidates first, runs cleanup in reverse order, and aggregates
 cleanup errors as `CleanupError`. Workers started with

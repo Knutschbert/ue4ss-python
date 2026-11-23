@@ -37,6 +37,7 @@ __all__ = [
     "ScriptRuntime",
     "WorkerHandle",
     "current_context",
+    "run_with_context",
 ]
 
 _current_context: contextvars.ContextVar["ComponentContext | None"] = contextvars.ContextVar(
@@ -56,6 +57,21 @@ def current_context() -> "ComponentContext | None":
     exceptions. Legacy code outside managed callbacks receives ``None``.
     """
     return _current_context.get()
+
+
+def run_with_context(
+    context: "ComponentContext | None", callback: Callable[..., Any], *args: Any, **kwargs: Any
+) -> Any:
+    """Run a callback under exactly ``context`` (including no owner), then restore the prior scope."""
+    if not callable_builtin(callback):
+        raise TypeError("callback must be callable")
+    if context is not None and not context.is_valid:
+        return None
+    marker = _current_context.set(context)
+    try:
+        return callback(*args, **kwargs)
+    finally:
+        _current_context.reset(marker)
 
 
 class CleanupError(RuntimeError):
