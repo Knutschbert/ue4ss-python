@@ -1,4 +1,7 @@
 import sys
+import concurrent.futures
+import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -204,6 +207,126 @@ def test_local_packages_must_be_under_configured_root_and_have_entrypoint(tmp_pa
     inside.mkdir(parents=True)
     error = on_game_thread(lambda: _capture(lambda: runtime.load_local("missing", inside)))
     assert isinstance(error, ValueError)
+
+
+def test_global_reload_stops_managed_components_before_new_main_and_drops_old_work():
+    runtime = ScriptRuntime()
+    events = []
+    source = (
+        "import builtins\n"
+        "def start(ctx):\n"
+        "    ctx.register_cleanup(lambda: builtins._global_reload_events.append('disposed'))\n"
+    )
+    builtins = __import__("builtins")
+    builtins._global_reload_events = events
+    on_game_thread(lambda: runtime.load_source("managed", source))
+    stale = []
+
+    def queue_old_work_behind_reload():
+        ue4ss.reload()
+        # This task is queued behind _do_reload and must not execute in the new
+        # script generation after reload clears the pending work queue.
+        runtime.manager.get("managed").execute_in_game_thread(lambda: stale.append(True))
+
+    on_game_thread(queue_old_work_behind_reload)
+    ue4ss._mock_main = lambda: events.append(
+        f"main:{runtime.manager.get('managed')}:{runtime.list()[0]['state']}"
+    )
+    ue4ss._mock_run_pending()
+    assert events == ["disposed", "main:None:stopped"]
+    assert stale == []
+    del builtins._global_reload_events
+
+
+def test_legacy_global_reload_does_not_import_managed_runtime():
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = str(ROOT / "python" / "mock")
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys, ue4ss; ue4ss.reload(); ue4ss._mock_run_pending(); "
+            "assert 'ue4ss.runtime' not in sys.modules",
+        ],
+        env=environment,
+        check=True,
+        timeout=10,
+    )
+
+
+def test_global_reload_cancels_future_for_work_removed_from_queue():
+    called = []
+    future = None
+    new_future = []
+
+    def enqueue_reload_then_future():
+        nonlocal future
+        ue4ss.reload()
+        future = ue4ss.call_in_game_thread(lambda: called.append("ran"))
+
+    on_game_thread(enqueue_reload_then_future)
+    ue4ss._mock_main = lambda: new_future.append(ue4ss.call_in_game_thread(lambda: called.append("new")))
+    ue4ss._mock_run_pending()
+    assert future.cancelled()
+    assert called == []
+    with pytest.raises(concurrent.futures.CancelledError):
+        future.result()
+    assert len(new_future) == 1 and not new_future[0].done()
+    ue4ss._mock_run_pending()
+    assert new_future[0].result() is None
+    assert called == ["new"]
+    assert not ue4ss._pending_futures
+
+
+def test_global_reload_worker_handover_is_nonblocking_and_gates_restart():
+    runtime = ScriptRuntime()
+    entered = __import__("threading").Event()
+    release = __import__("threading").Event()
+    exited = __import__("threading").Event()
+    source = (
+        "import threading\n"
+        "def start(ctx):\n"
+        "    def worker(stop_event):\n"
+        "        threading.Event().wait(0.01)\n"
+        "        import builtins\n"
+        "        builtins._managed_worker_entered.set()\n"
+        "        builtins._managed_worker_release.wait()\n"
+        "        builtins._managed_worker_exited.set()\n"
+        "    ctx.spawn_worker(worker)\n"
+    )
+    builtins = __import__("builtins")
+    builtins._managed_worker_entered = entered
+    builtins._managed_worker_release = release
+    builtins._managed_worker_exited = exited
+    on_game_thread(lambda: runtime.load_source("listener", source))
+    assert entered.wait(1)
+    report = []
+
+    def new_main():
+        from ue4ss.runtime import wait_for_global_handover
+        wait_for_global_handover(
+            lambda status: report.append(("ready", status)),
+            timeout_ms=0,
+            on_timeout=lambda status: report.append(("timeout", status)),
+        )
+
+    ue4ss._mock_main = new_main
+    on_game_thread(lambda: ue4ss.reload())
+    began = __import__("time").monotonic()
+    ue4ss._mock_run_pending()
+    assert __import__("time").monotonic() - began < 0.2
+    assert report and report[0][0] == "timeout"
+    assert report[0][1]["pending_workers"] == 1
+    assert report[0][1]["workers"][0]["stop_requested"] is True
+    release.set()
+    assert exited.wait(1)
+    on_game_thread(lambda: __import__("ue4ss.runtime", fromlist=["wait_for_global_handover"])
+                   .wait_for_global_handover(lambda status: report.append(("ready", status))))
+    assert report[-1][0] == "ready"
+    assert report[-1][1]["pending_workers"] == 0
+    del builtins._managed_worker_entered
+    del builtins._managed_worker_release
+    del builtins._managed_worker_exited
 
 
 def _capture(callback):

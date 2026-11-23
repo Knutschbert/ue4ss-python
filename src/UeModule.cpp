@@ -544,6 +544,35 @@ namespace pyue
         constexpr const char* s_bootstrap_source = R"PY(
 import concurrent.futures as _futures  # importing here makes the initialising thread threading's main thread
 import enum as _enum
+import threading as _threading
+
+
+_pending_futures = set()
+_pending_futures_lock = _threading.Lock()
+_reject_new_futures = False
+
+
+def _forget_pending_future(future):
+    with _pending_futures_lock:
+        _pending_futures.discard(future)
+
+
+def _cancel_pending_futures():
+    # Queue clearing destroys callbacks but otherwise leaves Future.result()
+    # waiters pending forever. Cancel only work that has not started.
+    global _reject_new_futures
+    with _pending_futures_lock:
+        _reject_new_futures = True
+        pending = tuple(_pending_futures)
+        _pending_futures.clear()
+    for future in pending:
+        future.cancel()
+
+
+def _resume_pending_futures():
+    global _reject_new_futures
+    with _pending_futures_lock:
+        _reject_new_futures = False
 
 
 def _load_blueprint_class(path):
@@ -581,6 +610,7 @@ _enable_submodules()
 
 def _reload_cleanup(scripts_dir):
     """Forget what the previous run of main.py left in Python: its modules and the names in __main__. Returns the removed module names."""
+    _cancel_pending_futures()
     import gc as _gc
     import importlib as _importlib
     import os as _os
@@ -800,18 +830,27 @@ class ObjectFlags(_enum.IntFlag):
 
 
 def call_in_game_thread(fn, *args, **kwargs):
-    """Run fn(*args, **kwargs) on the game thread; returns a concurrent.futures.Future for the result."""
+    """Run fn(*args, **kwargs) on the game thread; returns a Future (cancelled if reload drops queued work)."""
     if not callable(fn):
         raise TypeError("fn must be callable")
     future = _futures.Future()
+    with _pending_futures_lock:
+        if _reject_new_futures:
+            future.set_exception(RuntimeError("game-thread work is temporarily rejected during script reload"))
+            return future
+        _pending_futures.add(future)
+    future.add_done_callback(_forget_pending_future)
 
     def run():
         if not future.set_running_or_notify_cancel():
+            _forget_pending_future(future)
             return
         try:
             future.set_result(fn(*args, **kwargs))
         except BaseException as e:
             future.set_exception(e)
+        finally:
+            _forget_pending_future(future)
 
     execute_in_game_thread(run)
     return future

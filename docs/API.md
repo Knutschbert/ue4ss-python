@@ -22,7 +22,8 @@ thread (`is_valid()` and `repr()` never raise). To get there from another thread
 
 * `execute_in_game_thread(fn)`: run `fn()` on the game thread at a later tick. Never blocks.
 * `execute_with_delay(milliseconds, fn)`: the same, after at least that delay (accurate to one frame).
-* `call_in_game_thread(fn, *args, **kwargs)`: returns a `concurrent.futures.Future` for the result.
+* `call_in_game_thread(fn, *args, **kwargs)`: returns a `concurrent.futures.Future` for the result. A full script reload
+  cancels work still queued; waiting on that future then raises `concurrent.futures.CancelledError`.
 * `is_game_thread()`: where am I?
 
 Tasks run in order; one that raises is logged with its traceback and does not stop the rest. `sys.exit()` in a callback
@@ -318,6 +319,27 @@ configured local packages. `start(name)` starts the last loaded source/package
 as a new component instance; `reload(name)` creates both a fresh module identity
 and a fresh ownership context. No implicit `importlib.reload` or shared-module
 refresh occurs; updating shared library code requires a full script reload.
+
+The native full-reload path calls a private hook only when `ue4ss.runtime` is
+already imported. Managed components are invalidated and cleaned before native
+registrations and queued work are cleared; legacy scripts do not import the
+managed runtime as a side effect. If a managed worker is still stopping, the
+new main script must gate exclusive startup without blocking:
+
+```python
+from ue4ss.runtime import wait_for_global_handover
+
+wait_for_global_handover(
+    lambda status: start_components(),
+    on_timeout=lambda status: print("old workers still active; not restarting", status),
+)
+```
+
+The default handover limit is five seconds. It polls without joining workers;
+on timeout it keeps the old runtime references alive and does not call the ready
+callback. `ue4ss.call_in_game_thread` futures for callbacks discarded by a full
+reload are cancelled, so waiting threads receive `concurrent.futures.CancelledError`
+instead of waiting forever.
 
 ```python
 def pre(context, params):          # before the function runs

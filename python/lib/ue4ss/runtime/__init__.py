@@ -18,6 +18,7 @@ import os
 import re
 import sys
 import threading
+import time
 import traceback
 import weakref
 from dataclasses import dataclass
@@ -42,6 +43,8 @@ _current_context: contextvars.ContextVar["ComponentContext | None"] = contextvar
 _instance_ids = itertools.count(1)
 _SCRIPT_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
 MAX_SOURCE_BYTES = 128 * 1024
+_script_runtimes: "weakref.WeakSet[ScriptRuntime]" = weakref.WeakSet()
+_global_handover_runtimes: list["ScriptRuntime"] = []
 
 
 class CleanupError(RuntimeError):
@@ -549,6 +552,7 @@ class ScriptRuntime:
         self.manager = manager or RuntimeManager()
         self.roots = tuple(Path(root).resolve() for root in roots)
         self._scripts: dict[str, _ManagedScript] = {}
+        _script_runtimes.add(self)
 
     def _validate_name(self, name: str) -> None:
         if not isinstance(name, str) or not _SCRIPT_NAME.fullmatch(name):
@@ -740,6 +744,101 @@ class ScriptRuntime:
             }
             for script in self._scripts.values()
         ]
+
+    def _prepare_global_reload(self) -> list[str]:
+        errors = []
+        for name in tuple(self._scripts):
+            try:
+                self.stop(name)
+            except BaseException:
+                errors.append(f"{name}: {traceback.format_exc()}")
+        self._refresh()
+        return errors
+
+    def _handover_workers(self) -> list[WorkerHandle]:
+        self._refresh()
+        return [
+            worker
+            for script in self._scripts.values()
+            if script.context is not None
+            for worker in script.context._all_workers()
+            if worker.alive
+        ]
+
+
+def _before_global_reload() -> dict[str, Any]:
+    """Private native hook: stop already-loaded managers without importing runtime."""
+    errors: list[str] = []
+    cancel_futures = getattr(ue4ss, "_cancel_pending_futures", None)
+    if callable_builtin(cancel_futures):
+        cancel_futures()
+    runtimes = tuple(_script_runtimes)
+    for runtime in runtimes:
+        errors.extend(runtime._prepare_global_reload())
+        if runtime._handover_workers() and runtime not in _global_handover_runtimes:
+            _global_handover_runtimes.append(runtime)
+    return {
+        "runtime_count": len(runtimes),
+        "pending_workers": sum(len(runtime._handover_workers()) for runtime in _global_handover_runtimes),
+        "errors": errors,
+    }
+
+
+def wait_for_global_handover(
+    on_ready: Callable[[dict[str, Any]], Any],
+    *,
+    timeout_ms: int = 5000,
+    poll_ms: int = 50,
+    on_timeout: Callable[[dict[str, Any]], Any] | None = None,
+) -> None:
+    """Poll after a global reload without blocking or rebinding over old workers.
+
+    Call on the game thread before starting exclusive resources. The success
+    callback runs only after prior managed workers exit. A timeout reports the
+    surviving workers and intentionally leaves their old runtime objects intact.
+    """
+    if not ue4ss.is_game_thread():
+        raise ue4ss.UEError("global reload handover must be started on the game thread")
+    if not callable_builtin(on_ready):
+        raise TypeError("on_ready must be callable")
+    if on_timeout is not None and not callable_builtin(on_timeout):
+        raise TypeError("on_timeout must be callable or None")
+    if not isinstance(timeout_ms, int) or isinstance(timeout_ms, bool) or not 0 <= timeout_ms <= 60_000:
+        raise ValueError("timeout_ms must be an integer from 0 through 60000")
+    if not isinstance(poll_ms, int) or isinstance(poll_ms, bool) or poll_ms < 1:
+        raise ValueError("poll_ms must be a positive integer")
+    deadline = time.monotonic() + timeout_ms / 1000.0
+
+    def poll() -> None:
+        pending_workers = []
+        for runtime in tuple(_global_handover_runtimes):
+            pending_workers.extend(runtime._handover_workers())
+        status = {
+            "pending_workers": len(pending_workers),
+            "runtime_count": len(_global_handover_runtimes),
+            "timed_out": False,
+        }
+        if not pending_workers:
+            _global_handover_runtimes.clear()
+            on_ready(status)
+        elif time.monotonic() >= deadline:
+            status["timed_out"] = True
+            status["workers"] = [
+                {
+                    "name": worker.thread.name,
+                    "error": worker.error,
+                    "stop_requested": worker.stop_event.is_set(),
+                }
+                for worker in pending_workers
+            ]
+            if on_timeout is not None:
+                on_timeout(status)
+            else:
+                print(f"ue4ss.runtime: managed reload handover timed out; refusing unsafe restart: {status!r}")
+        else:
+            ue4ss.execute_with_delay(poll_ms, poll)
+
+    poll()
 
 
 def _is_relative_to(path: Path, root: Path) -> bool:

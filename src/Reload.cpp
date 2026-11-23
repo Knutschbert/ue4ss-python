@@ -51,6 +51,74 @@ namespace pyue::reload
             Py_XDECREF(module);
         }
 
+        // Managed runtimes live in the shared ue4ss package, not main.py globals.
+        // Look up only an already-loaded submodule: legacy scripts must not import it.
+        auto notify_managed_runtime_before_reload() -> void
+        {
+            GilGuard gil;
+            PyObject* modules = PyImport_GetModuleDict();
+            PyObject* runtime = modules ? PyDict_GetItemString(modules, "ue4ss.runtime") : nullptr; // borrowed
+            if (!runtime) return;
+
+            PyObject* function = PyObject_GetAttrString(runtime, "_before_global_reload");
+            if (!function)
+            {
+                PyErr_Clear(); // an older or partially imported runtime has no private hook
+                return;
+            }
+            PyObject* result = PyObject_CallNoArgs(function);
+            if (!result)
+            {
+                PyErr_Print();
+            }
+            else
+            {
+                PyObject* pending = PyDict_Check(result) ? PyDict_GetItemString(result, "pending_workers") : nullptr;
+                if (pending && PyLong_Check(pending))
+                {
+                    const long count = PyLong_AsLong(pending);
+                    Output::send<LogLevel::Verbose>(
+                            STR("PythonScripting: managed reload signalled; {} worker(s) still stopping\n"),
+                            static_cast<long long>(count));
+                }
+                PyObject* errors = PyDict_Check(result) ? PyDict_GetItemString(result, "errors") : nullptr;
+                if (errors && PyList_Check(errors) && PyList_GET_SIZE(errors) > 0)
+                {
+                    PyObject* text = PyObject_Str(errors);
+                    const char* utf8 = text ? PyUnicode_AsUTF8(text) : nullptr;
+                    if (utf8)
+                    {
+                        Output::send<LogLevel::Error>(
+                                STR("PythonScripting: managed reload cleanup errors: {}\n"), widen(utf8));
+                    }
+                    else
+                    {
+                        PyErr_Clear();
+                    }
+                    Py_XDECREF(text);
+                }
+            }
+            Py_XDECREF(result);
+            Py_DECREF(function);
+        }
+
+        auto resume_future_admission_after_queue_clear() -> void
+        {
+            GilGuard gil;
+            PyObject* modules = PyImport_GetModuleDict();
+            PyObject* ue4ss = modules ? PyDict_GetItemString(modules, "ue4ss") : nullptr; // borrowed
+            PyObject* function = ue4ss ? PyObject_GetAttrString(ue4ss, "_resume_pending_futures") : nullptr;
+            if (!function)
+            {
+                PyErr_Clear();
+                return;
+            }
+            PyObject* result = PyObject_CallNoArgs(function);
+            if (!result) PyErr_Print();
+            Py_XDECREF(result);
+            Py_DECREF(function);
+        }
+
         // Runs on the game thread, from the executor's queue (never inside a hook or another script callback).
         auto do_reload() -> void
         {
@@ -64,6 +132,7 @@ namespace pyue::reload
             }
             if (!run_main) return;
 
+            notify_managed_runtime_before_reload();
             const std::uint32_t generation = s_gate.begin();
             Output::send<LogLevel::Verbose>(STR("PythonScripting: reloading, generation {}\n"), static_cast<long long>(generation));
             unregister_all_hooks();                      // hooks and replacements
@@ -71,6 +140,7 @@ namespace pyue::reload
             unregister_all_key_bindings();
             game_thread_executor::clear_pending();       // queued and delayed tasks of the old scripts
             forget_script_modules(scripts_dir);
+            resume_future_admission_after_queue_clear();
 
             std::string error;
             if (run_main(error))

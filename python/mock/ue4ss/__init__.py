@@ -10,6 +10,7 @@ import enum as _enum
 import itertools as _itertools
 import os as _os
 import sys as _sys
+import threading as _threading
 import time as _time
 import traceback as _traceback
 
@@ -58,7 +59,31 @@ if _os.path.isdir(_lib_folder):
 _sequence = _itertools.count()
 _in_game_thread = False
 _mock_now = _time.monotonic  # tests replace this to control time
+_pending_epoch = 0
+_pending_futures = set()
+_pending_futures_lock = _threading.Lock()
+_reject_new_futures = False
 
+
+def _forget_pending_future(future):
+    with _pending_futures_lock:
+        _pending_futures.discard(future)
+
+
+def _cancel_pending_futures():
+    global _reject_new_futures
+    with _pending_futures_lock:
+        _reject_new_futures = True
+        pending = tuple(_pending_futures)
+        _pending_futures.clear()
+    for future in pending:
+        future.cancel()
+
+
+def _resume_pending_futures():
+    global _reject_new_futures
+    with _pending_futures_lock:
+        _reject_new_futures = False
 
 def _check_callable(fn):
     if not callable(fn):
@@ -112,10 +137,18 @@ def _result_parameter(params):
 
 def _do_reload():
     """Runs from the task queue, like the real reload (the queue is emptied first, the main.py stand-in runs afterwards)."""
-    global _reload_pending, _script_generation
+    global _reload_pending, _script_generation, _pending_epoch
     _reload_pending = False
+    runtime_module = _sys.modules.get("ue4ss.runtime")
+    if runtime_module is not None:
+        prepare = getattr(runtime_module, "_before_global_reload", None)
+        if callable(prepare):
+            prepare()
     _script_generation += 1
+    _cancel_pending_futures()
+    _pending_epoch += 1
     _pending.clear()                    # queued and delayed tasks of the old scripts (this one has already been taken)
+    _resume_pending_futures()
     _hook_records.clear()
     _replacements.clear()
     _new_object_subscriptions.clear()
@@ -130,18 +163,27 @@ def is_game_thread():
 
 
 def call_in_game_thread(fn, *args, **kwargs):
-    """Run fn(*args, **kwargs) on the game thread; returns a concurrent.futures.Future for the result."""
+    """Run fn(*args, **kwargs) on the game thread; returns a Future (cancelled if reload drops queued work)."""
     if not callable(fn):
         raise TypeError("fn must be callable")
     future = _futures.Future()
+    with _pending_futures_lock:
+        if _reject_new_futures:
+            future.set_exception(UEError("game-thread work is temporarily rejected during script reload"))
+            return future
+        _pending_futures.add(future)
+    future.add_done_callback(_forget_pending_future)
 
     def run():
         if not future.set_running_or_notify_cancel():
+            _forget_pending_future(future)
             return
         try:
             future.set_result(fn(*args, **kwargs))
         except BaseException as e:
             future.set_exception(e)
+        finally:
+            _forget_pending_future(future)
 
     execute_in_game_thread(run)
     return future
@@ -159,23 +201,31 @@ def _mock_run_pending():
     for item in due:
         _pending.remove(item)
     _in_game_thread = True
+    epoch = _pending_epoch
+    ran = 0
     try:
         for _, _, fn in due:
+            if _pending_epoch != epoch:
+                break
             try:
                 fn()
             except SystemExit:
                 print("sys.exit() inside a callback is ignored", file=_sys.stderr)
             except BaseException:
                 _traceback.print_exc()
+            ran += 1
     finally:
         _in_game_thread = False
-    return len(due)
+    return ran
 
 
 def _mock_reset():
     """Forget queued tasks (test isolation)."""
     global _in_game_thread
-    global _script_generation, _reload_pending, _mock_main
+    global _script_generation, _reload_pending, _mock_main, _pending_epoch
+    _cancel_pending_futures()
+    _resume_pending_futures()
+    _pending_epoch += 1
     _pending.clear()
     _in_game_thread = False
     _script_generation = 1

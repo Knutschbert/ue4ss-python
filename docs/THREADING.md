@@ -91,6 +91,15 @@ calls and distinct Windows thread ids per entry point; it keeps at most 8 ids pe
 - `main.py` currently runs on the event-loop thread. It may use `print`, imports, and register hooks and
   callbacks, but UE-touching calls will raise until the script runs on the game thread. Decision: run
   `main.py` from the queue on the first engine tick.
+- Full script reload first notifies an already-loaded `ue4ss.runtime` module (it never imports the managed runtime for a legacy script).
+  Managed components invalidate callbacks, dispose owned game-thread resources and signal workers before native hooks and pending
+  tasks are cleared. Workers are never joined on the game thread. A new bootstrap should call
+  `ue4ss.runtime.wait_for_global_handover()` before starting exclusive listeners/resources; it polls for at most five seconds
+  by default and fails visibly rather than rebinding while old workers are still alive. Native reload generation, component
+  generation and owner-scope generation remain separate concepts.
+- `call_in_game_thread` futures whose queued callbacks are discarded by full reload are cancelled; a waiting thread gets
+  `concurrent.futures.CancelledError`. This does not cancel a callback that has already begun running. Workers should still
+  check `script_generation()` and use bounded waits; full reload is not a thread kill or hot DLL unload.
 - Shutdown policy: **nothing is finalized when the game exits.** UE4SS's `DllMain` skips the
   program destructor when the process terminates (`lpReserved` is non-null), so `~PythonScriptingMod` and `Py_FinalizeEx`
   never run, and Windows ends every Python thread with the process. A non-daemon thread therefore cannot block the exit.
@@ -140,4 +149,3 @@ each must raise `UEError`, the wrapper-state ones must keep working, the game mu
 changed. A unit test (`python/tests/test_thread_guard_coverage.py`) fails when a public function or method of `ue4ss` is not
 mentioned in that example, so a new API cannot skip the check. The example found two real gaps when it was written:
 `unregister_replacement` worked from a worker thread, and `unregister_hook` forgot its record before refusing.
-
