@@ -303,7 +303,7 @@ class BridgeHostTest(BridgeHarness):
             self._register_wait(namespace, "w1", code="ready", timeout=30)
             path = Path(outbox) / "w1.json"
             self.assertFalse(path.exists(), "a pending wait must not reply yet")
-            self.send(namespace, outbox, "w2", operation="execute", code="ready = True\nresult = True")
+            namespace["_scope"]["ready"] = True  # game state can change independently of foreground bridge requests
             namespace["_poll"]()
             response = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(response["status"], "ok")
@@ -351,8 +351,8 @@ class BridgeHostTest(BridgeHarness):
             namespace, inbox, outbox = self.harness(directory)
             self._register_wait(namespace, "w8", code="ready", timeout=30)
             response = self.send(namespace, outbox, "w9", operation="wait_until", code="other", timeout=30)
-            self.assertEqual(response["status"], "error")
-            self.assertEqual(response["error"]["type"], "ValueError")
+            self.assertEqual(response["status"], "rejected")
+            self.assertEqual(response["error"]["type"], "Busy")
 
 
 if __name__ == "__main__":

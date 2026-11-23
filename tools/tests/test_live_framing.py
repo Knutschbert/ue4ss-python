@@ -28,6 +28,7 @@ from ue4ss.live.framing import (  # noqa: E402
 )
 from ue4ss.live.security import (  # noqa: E402
     TokenSecurityError,
+    _set_and_check_windows_acl,
     provision_token,
     read_token,
 )
@@ -152,6 +153,33 @@ def test_numeric_ipv4_and_ipv6_loopback_listener_binds_exclusively():
             listener6.close()
 
 
+def test_listener_requests_windows_exclusive_address_use_when_available(monkeypatch):
+    calls = []
+
+    class ListenerStub:
+        def setsockopt(self, *args):
+            calls.append(("setsockopt", args))
+
+        def bind(self, address):
+            calls.append(("bind", address))
+
+        def listen(self, backlog):
+            calls.append(("listen", backlog))
+
+        def settimeout(self, timeout):
+            calls.append(("timeout", timeout))
+
+        def close(self):
+            calls.append(("close",))
+
+    option = 0x100
+    monkeypatch.setattr(socket, "SO_EXCLUSIVEADDRUSE", option, raising=False)
+    monkeypatch.setattr(socket, "socket", lambda family, kind: ListenerStub())
+    listener = create_listener("127.0.0.1", 0)
+    assert any(call[0] == "setsockopt" and call[1][1] == option for call in calls)
+    listener.close()
+
+
 def test_token_provisioning_is_private_and_never_overwrites(tmp_path):
     path = tmp_path / "private" / "live.token"
     token = provision_token(path)
@@ -180,3 +208,34 @@ def test_token_loader_rejects_symlink(tmp_path):
     link.symlink_to(real)
     with pytest.raises(TokenSecurityError):
         read_token(link)
+
+
+def test_windows_acl_provisioning_removes_inheritance_and_rejects_other_aces(monkeypatch, tmp_path):
+    import ue4ss.live.security as security
+
+    sid = "S-1-5-21-123"
+    monkeypatch.setattr(security, "_windows_user_sid", lambda: sid)
+    calls = []
+
+    class Result:
+        returncode = 0
+
+    def run(args, **_kwargs):
+        calls.append(args)
+        result = Result()
+        result.stdout = f"{args[1]}\n    {sid}:(R)\n"
+        return result
+
+    monkeypatch.setattr(security.subprocess, "run", run)
+    _set_and_check_windows_acl(tmp_path / "token")
+    assert calls[0][2:4] == ["/inheritance:r", "/grant:r"]
+    assert calls[0][-1] == f"*{sid}:(R)"
+
+    def unsafe_run(args, **_kwargs):
+        result = Result()
+        result.stdout = f"{args[1]}\n    {sid}:(R)\n    BUILTIN\\Users:(R)\n"
+        return result
+
+    monkeypatch.setattr(security.subprocess, "run", unsafe_run)
+    with pytest.raises(TokenSecurityError, match="beyond the current user"):
+        _set_and_check_windows_acl(tmp_path / "token")

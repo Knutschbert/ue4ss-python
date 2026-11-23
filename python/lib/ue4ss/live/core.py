@@ -7,6 +7,7 @@ import io
 import itertools
 import json
 import math
+import threading
 import time
 import traceback
 from typing import Any, Callable
@@ -84,13 +85,17 @@ class LiveCore:
     ):
         if not callable(event_sink):
             raise TypeError("event_sink must be callable")
-        self._sink = event_sink
+        self._event_sinks = [event_sink]
+        self._event_sinks_lock = threading.RLock()
+        self.event_sink_errors: list[str] = []
         self.ue = ue_module
         self._world_name = world_name or self._level_name
         self._travel = travel or self._travel_to
         self._wall = wall_clock
         self._mono = monotonic
         self.busy = False
+        self._admission_lock = threading.Lock()
+        self._admitted_request_id: str | None = None
         self.stopping = False
         self.scope_generation = 1
         self.poll_failures = 0
@@ -98,6 +103,70 @@ class LiveCore:
         self.jobs: dict[str, dict[str, Any]] = {}
         self.cleanup_groups: dict[str, dict[str, Callable[[], Any]]] = {}
         self.pending_wait: dict[str, Any] | None = None
+
+    def add_event_sink(self, event_sink: Callable[[dict[str, Any]], Any]) -> Callable[[], None]:
+        """Attach a transport sink; returns an idempotent detach callback."""
+        if not callable(event_sink):
+            raise TypeError("event_sink must be callable")
+        with self._event_sinks_lock:
+            if event_sink not in self._event_sinks:
+                self._event_sinks.append(event_sink)
+        detached = False
+        detach_lock = threading.Lock()
+
+        def detach() -> None:
+            nonlocal detached
+            with detach_lock:
+                if detached:
+                    return
+                detached = True
+            with self._event_sinks_lock:
+                try:
+                    self._event_sinks.remove(event_sink)
+                except ValueError:
+                    pass
+
+        return detach
+
+    def _emit(self, event: dict[str, Any]) -> None:
+        with self._event_sinks_lock:
+            sinks = tuple(self._event_sinks)
+        for sink in sinks:
+            try:
+                sink(event)
+            except Exception as error:
+                self.event_sink_errors.append(f"{type(error).__name__}: {error}"[:500])
+                if len(self.event_sink_errors) > 32:
+                    del self.event_sink_errors[:-32]
+
+    def reserve_foreground(self, request_id: str, *, allow_wait_reset: bool = False) -> bool:
+        """Reserve the single cross-transport foreground slot without waiting."""
+        with self._admission_lock:
+            current = self._admitted_request_id
+            if current is None or current == request_id:
+                self._admitted_request_id = request_id
+                return True
+            pending = self.pending_wait
+            if allow_wait_reset and pending is not None and pending.get("request_id") == current:
+                self._admitted_request_id = request_id
+                return True
+            return False
+
+    def _release_foreground(self, request_id: str) -> None:
+        with self._admission_lock:
+            if self._admitted_request_id == request_id:
+                self._admitted_request_id = None
+
+    def _wait_is_pending(self, request_id: str) -> bool:
+        with self._admission_lock:
+            return self.pending_wait is not None and self.pending_wait.get("request_id") == request_id
+
+    def _finish_wait(self, request_id: str) -> None:
+        with self._admission_lock:
+            if self.pending_wait is not None and self.pending_wait.get("request_id") == request_id:
+                self.pending_wait = None
+            if self._admitted_request_id == request_id:
+                self._admitted_request_id = None
 
     def _require_game_thread(self) -> None:
         if not self.ue.is_game_thread():
@@ -107,7 +176,7 @@ class LiveCore:
         event: dict[str, Any] = {"event": "state", "id": request_id, "state": state, "time": self._wall()}
         if detail is not None:
             event["detail"] = self._safe(detail)
-        self._sink(event)
+        self._emit(event)
 
     def _emit_response(
         self, request_id: str, status: str, *, stdout: str = "", stderr: str = "",
@@ -133,7 +202,7 @@ class LiveCore:
             request_id, status, stdout=stdout[:MAX_OUTPUT_CHARS], stderr=stderr[:MAX_OUTPUT_CHARS],
             result=safe_result, error=safe_error, duration=max(0.0, duration), now=self._wall(),
         )
-        self._sink({"event": "response", "record": record})
+        self._emit({"event": "response", "record": record})
         return record
 
     def _safe(self, value: Any, depth: int = 0, budget: list[int] | None = None) -> Any:
@@ -253,18 +322,19 @@ class LiveCore:
                               "traceback": traceback.format_exc()[-16_384:]})
         job["duration"] = self._mono() - began
         self._prune_jobs()
-        self._sink({"event": "job", "job": self._job_view(job)})
+        self._emit({"event": "job", "job": self._job_view(job)})
 
     def _start_wait(self, request_id: str, record: dict[str, Any]) -> None:
         if self.pending_wait is not None:
             raise ValueError("another wait_until is already pending")
         code = record.get("code", "").strip()
         check = compile(code, "<wait-check>", "eval") if code else None
-        self.pending_wait = {
-            "request_id": request_id, "code": code, "check": check,
-            "deadline": record["deadline"], "began_mono": self._mono(),
-            "generation": self.scope_generation,
-        }
+        with self._admission_lock:
+            self.pending_wait = {
+                "request_id": request_id, "code": code, "check": check,
+                "deadline": record["deadline"], "began_mono": self._mono(),
+                "generation": self.scope_generation,
+            }
         self._emit_state(request_id, "waiting")
 
     def maintenance(self) -> None:
@@ -286,13 +356,13 @@ class LiveCore:
                 self._emit_response(request_id, "error", error=detail,
                                     duration=self._mono() - wait["began_mono"])
                 self._emit_state(request_id, "failed", detail)
-                self.pending_wait = None
+                self._finish_wait(request_id)
                 return
             if final:
                 self._emit_response(request_id, "ok", result=final,
                                     duration=self._mono() - wait["began_mono"])
                 self._emit_state(request_id, "completed")
-                self.pending_wait = None
+                self._finish_wait(request_id)
                 return
         duration = self._mono() - wait["began_mono"]
         if self._wall() > wait["deadline"]:
@@ -303,7 +373,7 @@ class LiveCore:
             else:
                 self._emit_response(request_id, "ok", result={"slept": True}, duration=duration)
                 self._emit_state(request_id, "completed")
-            self.pending_wait = None
+            self._finish_wait(request_id)
 
     def dispatch(self, record: dict[str, Any]) -> dict[str, Any] | None:
         """Validate, admit, execute one request and emit transport-neutral events."""
@@ -327,6 +397,10 @@ class LiveCore:
             return self._emit_response(
                 request_id, "rejected", error={"type": "Busy", "message": "another request is running"}
             )
+        if not self.reserve_foreground(request_id, allow_wait_reset=request["operation"] == "reset"):
+            return self._emit_response(
+                request_id, "rejected", error={"type": "Busy", "message": "another foreground request is active"}
+            )
         self.busy = True
         self._emit_state(request_id, "running")
         stdout, stderr = BoundedTextIO(), BoundedTextIO()
@@ -344,7 +418,7 @@ class LiveCore:
                                 pending["request_id"], "rejected",
                                 error={"type": "Reset", "message": "session reset while a wait was pending"},
                             )
-                            self.pending_wait = None
+                            self._finish_wait(pending["request_id"])
                         cleanup = self.cleanup("*")
                         self.scope_generation += 1
                         self.scope = self._new_scope()
@@ -413,6 +487,8 @@ class LiveCore:
             self._emit_state(request_id, "completed" if response["status"] == "ok" else response["status"])
         finally:
             self.busy = False
+            if not self._wait_is_pending(request_id):
+                self._release_foreground(request_id)
         if operation == "reload" and not self.stopping:
             self.ue.reload()
         return response
@@ -421,7 +497,16 @@ class LiveCore:
         self._require_game_thread()
         self.stopping = True
         self.cleanup("*")
-        self.pending_wait = None
+        with self._admission_lock:
+            pending = self.pending_wait
+        if pending is not None:
+            request_id = pending["request_id"]
+            error = {"type": "UnknownOutcome", "message": "live bridge stopped while wait was pending"}
+            self._emit_response(request_id, "unknown", error=error)
+            self._emit_state(request_id, "unknown", error)
+        with self._admission_lock:
+            self.pending_wait = None
+            self._admitted_request_id = None
 
     def _level_name(self):
         try:

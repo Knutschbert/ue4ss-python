@@ -160,10 +160,17 @@ example `ssh -L 127.0.0.1:PORT:127.0.0.1:PORT user@game-host`; do not expose the
 interface. The token must not be put in generated scripts, command-line arguments, URLs, or logs.
 
 The packaged framing/security helpers enforce a 1 MiB whole-frame limit, strict UTF-8 JSON, finite numeric values,
-strict request IDs, constant-time token comparison, and pre-authentication message restrictions. Token provisioning
-uses an exclusive file create and fails closed unless POSIX mode/ownership or the current Windows user ACL can be
-verified. On WSL/DrvFS, use metadata-backed private permissions; a permissive mode report is rejected. TCP service,
-client endpoint configuration, and a supported token-provisioning CLI are not yet enabled by this helper layer.
+strict request IDs, constant-time token comparison, and pre-authentication message restrictions. The packaged selector
+worker keeps socket I/O off the game thread and retains bounded request outcomes across reconnects within one bridge
+instance. Token provisioning uses an exclusive file create and fails closed unless POSIX mode/ownership or the current
+Windows user ACL can be verified. On WSL/DrvFS, use metadata-backed private permissions; a permissive mode report is
+rejected. The worker and token helper are not yet enabled by the live CLI or managed installation; endpoint client
+configuration and a supported token-provisioning CLI remain to be integrated.
+
+An admitted request is not cancelled when its client disconnects. Reconnect and query its outcome rather than
+replaying code; if the response is no longer retained or the bridge instance changed, the outcome is `unknown`.
+`live_reload` keeps its reload-all meaning. Its acknowledgement may be lost while the old worker shuts down, so a
+disconnect around reload is not proof that the operation did not happen.
 
 ## Verified
 

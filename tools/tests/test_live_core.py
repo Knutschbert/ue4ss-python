@@ -115,6 +115,24 @@ def test_pending_wait_advances_only_in_maintenance_and_finishes_once():
     assert core.pending_wait is None
     core.maintenance()
     assert len(responses(events)) == 1
+    assert core.reserve_foreground("other") is True
+    core._release_foreground("other")
+
+
+def test_pending_wait_holds_shared_foreground_admission_until_terminal_completion():
+    core, _fake, events = core_with_events()
+    core.scope["ready"] = False
+    wait_request = make_request(
+        "wait_until", code="ready", timeout=30, request_id="held-wait", now=time.time()
+    )
+    assert core.dispatch(wait_request) is None
+    busy = core.dispatch(request(code="result = 'should not run'", request_id="competing"))
+    assert busy["status"] == "rejected"
+    assert busy["error"]["type"] == "Busy"
+    core.scope["ready"] = True
+    core.maintenance()
+    assert core.reserve_foreground("after-wait") is True
+    core._release_foreground("after-wait")
 
 
 def test_wait_timeout_and_reset_emit_terminal_state():
